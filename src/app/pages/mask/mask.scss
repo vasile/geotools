@@ -74,6 +74,14 @@
   font-size: 0.8rem;
 }
 
+
+.copy-status {
+  min-width: 4.5rem;
+  color: #64748b;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
 @media (max-width: 767.98px) {
   .mask-layout {
     grid-template-rows: minmax(22rem, 58dvh) auto;

@@ -42,12 +42,14 @@ export class Mask implements AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
   private currentInput: MaskInput = DEFAULT_INPUT;
+  private copyStatusTimer?: ReturnType<typeof setTimeout>;
 
   protected readonly inputControl = new FormControl(JSON.stringify(DEFAULT_INPUT, null, 2), {
     nonNullable: true
   });
   protected readonly errorMessage = signal('');
   protected readonly outputValue = signal(JSON.stringify(mask(DEFAULT_INPUT), null, 2));
+  protected readonly copyStatus = signal('');
 
   constructor(
     private readonly mapService: MapService,
@@ -100,7 +102,20 @@ export class Mask implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.copyStatusTimer);
     this.mapService.destroy();
+  }
+
+  protected async copyOutput(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.outputValue());
+      this.copyStatus.set('Copied');
+    } catch {
+      this.copyStatus.set('Copy failed');
+    }
+
+    clearTimeout(this.copyStatusTimer);
+    this.copyStatusTimer = setTimeout(() => this.copyStatus.set(''), 2000);
   }
 
   private applyInput(value: string): void {
