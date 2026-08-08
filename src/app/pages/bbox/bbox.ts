@@ -36,10 +36,14 @@ export class Bbox implements AfterViewInit, OnDestroy {
   protected bboxValue = SWITZERLAND_BOUNDS.join(',');
   protected errorMessage = '';
 
-  constructor(private readonly mapService: MapService) {}
+  constructor(
+    private readonly mapService: MapService,
+    destroyRef: DestroyRef
+  ) {
     this.bboxChanges
       .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe(() => this.applyBounds(false));
+  }
 
   async ngAfterViewInit(): Promise<void> {
     this.map = await this.mapService.init(this.mapContainer, {
@@ -53,7 +57,7 @@ export class Bbox implements AfterViewInit, OnDestroy {
     });
 
     this.addBoundsLayers();
-    this.drawBounds(this.currentBounds, false);
+    this.drawBounds(this.currentBounds);
   }
 
   protected applyBounds(fitMap = true): void {
@@ -109,17 +113,10 @@ export class Bbox implements AfterViewInit, OnDestroy {
     return [west, south, east, north];
   }
 
-  private drawBounds([west, south, east, north]: Bounds, animate: boolean): void {
-    const data = MapHelpers.boundsToPolygonFeatureCollection([west, south, east, north]);
+  private drawBounds(bounds: Bounds): void {
+    const data = MapHelpers.boundsToPolygonFeatureCollection(bounds);
 
-    if (!this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data)) {
-      return;
-    }
-
-    this.mapService.fitBounds([west, south, east, north], {
-      padding: 48,
-      duration: animate ? 600 : 0
-    });
+    this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data);
   }
 
   private addBoundsLayers(): void {
