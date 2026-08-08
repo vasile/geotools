@@ -1,8 +1,9 @@
 html {
-  scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
-  min-height: 100vh;
-  background-color: #fff;
+  min-height: 100%;
+  margin: 0;
+  background-color: #f8fafc;
 }
