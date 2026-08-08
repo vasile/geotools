@@ -5,6 +5,7 @@ import {
   ElementRef,
   OnInit,
   OnDestroy,
+  signal,
   ViewChild
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -37,10 +38,12 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   private map?: mapgl.Map;
   private currentBounds = DEFAULT_BOUNDS;
   private readonly bboxChanges = new Subject<string>();
+  private copyStatusTimer?: ReturnType<typeof setTimeout>;
 
   protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected errorMessage = '';
   protected outputFormat: OutputFormat = 'geojson';
+  protected readonly copyStatus = signal('');
 
   protected get outputValue(): string {
     switch (this.outputFormat) {
@@ -134,7 +137,20 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.bboxChanges.next(value);
   }
 
+  protected async copyOutput(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.outputValue);
+      this.copyStatus.set('Copied');
+    } catch {
+      this.copyStatus.set('Copy failed');
+    }
+
+    clearTimeout(this.copyStatusTimer);
+    this.copyStatusTimer = setTimeout(() => this.copyStatus.set(''), 2000);
+  }
+
   ngOnDestroy(): void {
+    clearTimeout(this.copyStatusTimer);
     this.mapService.destroy();
   }
 

@@ -85,6 +85,21 @@
   margin-bottom: 0.75rem;
 }
 
+.output-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.copy-status {
+  min-width: 4.5rem;
+  color: #64748b;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
 .output-panel {
   display: flex;
   min-height: 0;

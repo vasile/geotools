@@ -61,6 +61,13 @@
         readonly
         spellcheck="false"
       ></textarea>
+
+      <div class="output-actions">
+        <span class="copy-status" aria-live="polite">{{ copyStatus() }}</span>
+        <button class="btn btn-outline-primary btn-sm" type="button" (click)="copyOutput()">
+          Copy to clipboard
+        </button>
+      </div>
     </section>
   </aside>
 </div>
