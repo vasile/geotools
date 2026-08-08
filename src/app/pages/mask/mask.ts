@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import bbox from '@turf/bbox';
 import buffer from '@turf/buffer';
 import difference from '@turf/difference';
@@ -90,17 +90,25 @@ export class Mask implements AfterViewInit, OnDestroy {
 
   constructor(
     private readonly mapService: MapService,
-    route: ActivatedRoute,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
     destroyRef: DestroyRef
   ) {
-    const routeBounds = this.parseBounds(route.snapshot.queryParamMap.get('bounds'));
+    const routePoints = this.parseCoordinates(this.route.snapshot.queryParamMap.get('coords'));
+    const routeBounds = this.parseBounds(this.route.snapshot.queryParamMap.get('bounds'));
+    const routeBuffer = this.parseBuffer(this.route.snapshot.queryParamMap.get('buffer'));
 
-    if (routeBounds) {
-      this.currentInput = MapHelpers.boundsToPolygonFeatureCollection(routeBounds);
+    if (routeBuffer !== undefined) {
+      this.pointBufferControl.setValue(routeBuffer, { emitEvent: false });
+    }
+
+    if (routePoints || routeBounds) {
+      this.currentInput = routePoints ?? MapHelpers.boundsToPolygonFeatureCollection(routeBounds!);
       this.inputControl.setValue(JSON.stringify(this.currentInput, null, 2), { emitEvent: false });
+      this.hasBufferableFeatures.set(Boolean(routePoints));
       this.outputValue.set(
         this.formatGeoJson(
-          this.createInverseMask(this.currentInput, DEFAULT_POINT_BUFFER_METERS)
+          this.createInverseMask(this.currentInput, this.pointBufferControl.value)
         )
       );
     }
@@ -111,7 +119,10 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     this.pointBufferControl.valueChanges
       .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
-      .subscribe((value) => this.applyPointBuffer(value));
+      .subscribe((value) => {
+        this.applyPointBuffer(value);
+        this.updateBufferQueryParam(value);
+      });
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -126,7 +137,7 @@ export class Mask implements AfterViewInit, OnDestroy {
       }
     });
 
-    const initialMask = this.createInverseMask(this.currentInput, DEFAULT_POINT_BUFFER_METERS);
+    const initialMask = this.createInverseMask(this.currentInput, this.pointBufferControl.value);
 
     map.addSource(MASK_SOURCE_ID, { type: 'geojson', data: initialMask });
     map.addLayer({
@@ -289,6 +300,71 @@ export class Mask implements AfterViewInit, OnDestroy {
     }
 
     return [west, south, east, north];
+  }
+
+  private parseCoordinates(value: string | null): FeatureCollection<Point> | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const coordinates = value.split(',').map((coordinate) => Number(coordinate.trim()));
+
+    if (
+      coordinates.length < 4 ||
+      coordinates.length % 2 !== 0 ||
+      coordinates.some((coordinate) => !Number.isFinite(coordinate))
+    ) {
+      return undefined;
+    }
+
+    const features: Feature<Point>[] = [];
+
+    for (let index = 0; index < coordinates.length; index += 2) {
+      const longitude = coordinates[index];
+      const latitude = coordinates[index + 1];
+
+      if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+        return undefined;
+      }
+
+      features.push({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude]
+        }
+      });
+    }
+
+    return {
+      type: 'FeatureCollection',
+      features
+    };
+  }
+
+  private parseBuffer(value: string | null): number | undefined {
+    if (value === null) {
+      return undefined;
+    }
+
+    const bufferMeters = Number(value);
+    return Number.isFinite(bufferMeters) && bufferMeters > 0 ? bufferMeters : undefined;
+  }
+
+  private updateBufferQueryParam(value: number): void {
+    if (!Number.isFinite(value) || value <= 0) {
+      return;
+    }
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        buffer: value === DEFAULT_POINT_BUFFER_METERS ? null : value
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   private formatGeoJson(value: Feature<Polygon | MultiPolygon>): string {
