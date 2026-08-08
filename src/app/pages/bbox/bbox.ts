@@ -1,6 +1,15 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnDestroy,
+  ViewChild
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import * as mapgl from 'mapbox-gl';
+import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
 import { Bounds, MapHelpers } from '../../shared/helpers/map-helpers';
