@@ -46,6 +46,10 @@ export class MapService {
     this.map?.fitBounds(bounds, options);
   }
 
+  getBounds(): mapgl.LngLatBounds | undefined {
+    return this.map?.getBounds() ?? undefined;
+  }
+
   destroy(): void {
     this.map?.remove();
     this.map = undefined;

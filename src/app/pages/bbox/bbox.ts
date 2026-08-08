@@ -168,6 +168,29 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.bboxChanges.next(value);
   }
 
+  protected useMapViewport(): void {
+    const mapBounds = this.mapService.getBounds();
+
+    if (!mapBounds) {
+      return;
+    }
+
+    const southwest = mapBounds.getSouthWest();
+    const northeast = mapBounds.getNorthEast();
+    const bounds: Bounds = [
+      this.roundCoordinate(southwest.lng),
+      this.roundCoordinate(southwest.lat),
+      this.roundCoordinate(northeast.lng),
+      this.roundCoordinate(northeast.lat)
+    ];
+
+    this.bboxValue = bounds.join(',');
+    this.currentBounds = bounds;
+    this.errorMessage = '';
+    this.drawBounds(bounds);
+    this.updateQueryParams(bounds);
+  }
+
   protected outputFormatChanged(format: OutputFormat): void {
     this.outputFormat = format;
     this.updateQueryParams(this.currentBounds);
@@ -211,6 +234,10 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     }
 
     return [west, south, east, north];
+  }
+
+  private roundCoordinate(value: number): number {
+    return Number(value.toFixed(6));
   }
 
   private drawBounds(bounds: Bounds): void {

@@ -74,6 +74,26 @@
   font-size: 0.8rem;
 }
 
+.viewport-action {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  margin-top: 0.75rem;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.viewport-action .btn-link {
+  padding: 0;
+  font-size: inherit;
+  text-decoration: none;
+}
+
+.viewport-action .btn-link:hover {
+  text-decoration: underline;
+}
+
 .formatted-output {
   flex: 1;
   min-height: 0;
