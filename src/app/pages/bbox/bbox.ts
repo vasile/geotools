@@ -46,7 +46,10 @@ export class Bbox implements AfterViewInit, OnDestroy {
       bounds: [
         [SWITZERLAND_BOUNDS[0], SWITZERLAND_BOUNDS[1]],
         [SWITZERLAND_BOUNDS[2], SWITZERLAND_BOUNDS[3]]
-      ]
+      ],
+      fitBoundsOptions: {
+        padding: 48
+      }
     });
 
     this.addBoundsLayers();
