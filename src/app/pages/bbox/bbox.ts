@@ -1,5 +1,6 @@
 import {
   AfterViewInit,
+  ChangeDetectorRef,
   Component,
   DestroyRef,
   ElementRef,
@@ -16,7 +17,7 @@ import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
-import type { Bounds } from '../../shared/helpers/map-helpers';
+import type { Bounds, BoundsCorner } from '../../shared/helpers/map-helpers';
 
 type OutputFormat =
   | 'geojson'
@@ -45,8 +46,11 @@ function isOutputFormat(value: string | null): value is OutputFormat {
 
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
+const BOUNDS_HANDLES_SOURCE_ID = 'bbox-handles';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
 const BOUNDS_OUTLINE_LAYER_ID = 'bbox-outline';
+const BOUNDS_HANDLES_LAYER_ID = 'bbox-handles';
+const MIN_BOUNDS_SPAN = 0.000001;
 
 @Component({
   selector: 'app-bbox',
@@ -61,7 +65,9 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   private map?: mapgl.Map;
   private currentBounds = DEFAULT_BOUNDS;
   private readonly bboxChanges = new Subject<string>();
+  private readonly draggedBoundsChanges = new Subject<Bounds>();
   private copyStatusTimer?: ReturnType<typeof setTimeout>;
+  private activeCorner?: BoundsCorner;
 
   protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected errorMessage = '';
@@ -97,6 +103,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     private readonly mapService: MapService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
+    private readonly changeDetectorRef: ChangeDetectorRef,
     destroyRef: DestroyRef
   ) {
     const routeBounds = this.route.snapshot.queryParamMap.get('bounds');
@@ -120,6 +127,9 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.bboxChanges
       .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe(() => this.applyBounds(false));
+    this.draggedBoundsChanges
+      .pipe(debounceTime(75), takeUntilDestroyed(destroyRef))
+      .subscribe((bounds) => this.updateQueryParams(bounds));
   }
 
   ngOnInit(): void {
@@ -210,6 +220,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.copyStatusTimer);
+    this.endHandleDrag();
     this.mapService.destroy();
   }
 
@@ -241,9 +252,14 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private drawBounds(bounds: Bounds): void {
-    const data = MapHelpers.boundsToPolygonFeatureCollection(bounds);
-
-    this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data);
+    this.mapService.updateGeoJSONSource(
+      BOUNDS_SOURCE_ID,
+      MapHelpers.boundsToPolygonFeatureCollection(bounds)
+    );
+    this.mapService.updateGeoJSONSource(
+      BOUNDS_HANDLES_SOURCE_ID,
+      MapHelpers.boundsToHandleFeatureCollection(bounds)
+    );
   }
 
   private updateQueryParams(bounds: Bounds): void {
@@ -281,5 +297,117 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
         'line-width': 3
       }
     });
+    this.map?.addSource(BOUNDS_HANDLES_SOURCE_ID, {
+      type: 'geojson',
+      data: MapHelpers.boundsToHandleFeatureCollection(this.currentBounds)
+    });
+    this.map?.addLayer({
+      id: BOUNDS_HANDLES_LAYER_ID,
+      type: 'circle',
+      source: BOUNDS_HANDLES_SOURCE_ID,
+      paint: {
+        'circle-radius': 7,
+        'circle-color': '#2563eb',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2
+      }
+    });
+
+    this.map?.on('mouseenter', BOUNDS_HANDLES_LAYER_ID, () => {
+      if (this.map) {
+        this.map.getCanvas().style.cursor = 'grab';
+      }
+    });
+    this.map?.on('mouseleave', BOUNDS_HANDLES_LAYER_ID, () => {
+      if (this.map && !this.activeCorner) {
+        this.map.getCanvas().style.cursor = '';
+      }
+    });
+    this.map?.on('mousedown', BOUNDS_HANDLES_LAYER_ID, (event) => {
+      const corner = event.features?.[0]?.properties?.['corner'];
+
+      if (!isBoundsCorner(corner)) {
+        return;
+      }
+
+      event.preventDefault();
+      this.activeCorner = corner;
+      this.map?.dragPan.disable();
+      this.map?.getCanvas().style.setProperty('cursor', 'grabbing');
+      this.map?.on('mousemove', this.handleDrag);
+      this.map?.once('mouseup', this.endHandleDrag);
+    });
   }
+
+  private readonly handleDrag = (event: mapgl.MapMouseEvent): void => {
+    if (!this.activeCorner) {
+      return;
+    }
+
+    const [west, south, east, north] = this.currentBounds;
+    const longitude = this.roundCoordinate(event.lngLat.lng);
+    const latitude = this.roundCoordinate(event.lngLat.lat);
+    let bounds: Bounds;
+
+    switch (this.activeCorner) {
+      case 'sw':
+        bounds = [
+          Math.min(longitude, east - MIN_BOUNDS_SPAN),
+          Math.min(latitude, north - MIN_BOUNDS_SPAN),
+          east,
+          north
+        ];
+        break;
+      case 'se':
+        bounds = [
+          west,
+          Math.min(latitude, north - MIN_BOUNDS_SPAN),
+          Math.max(longitude, west + MIN_BOUNDS_SPAN),
+          north
+        ];
+        break;
+      case 'ne':
+        bounds = [
+          west,
+          south,
+          Math.max(longitude, west + MIN_BOUNDS_SPAN),
+          Math.max(latitude, south + MIN_BOUNDS_SPAN)
+        ];
+        break;
+      case 'nw':
+        bounds = [
+          Math.min(longitude, east - MIN_BOUNDS_SPAN),
+          south,
+          east,
+          Math.max(latitude, south + MIN_BOUNDS_SPAN)
+        ];
+        break;
+    }
+
+    this.currentBounds = bounds;
+    this.bboxValue = bounds.join(',');
+    this.errorMessage = '';
+    this.drawBounds(bounds);
+    this.draggedBoundsChanges.next(bounds);
+    this.changeDetectorRef.markForCheck();
+  };
+
+  private readonly endHandleDrag = (): void => {
+    if (this.activeCorner) {
+      this.updateQueryParams(this.currentBounds);
+    }
+
+    this.map?.off('mousemove', this.handleDrag);
+    this.map?.dragPan.enable();
+
+    if (this.map) {
+      this.map.getCanvas().style.cursor = '';
+    }
+
+    this.activeCorner = undefined;
+  };
+}
+
+function isBoundsCorner(value: unknown): value is BoundsCorner {
+  return value === 'sw' || value === 'se' || value === 'ne' || value === 'nw';
 }
