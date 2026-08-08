@@ -1,0 +1,9 @@
+.hero {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(13, 110, 253, 0.12), transparent 35%),
+    linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.hero p {
+  max-width: 42rem;
+}
