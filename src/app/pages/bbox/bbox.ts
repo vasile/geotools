@@ -18,7 +18,15 @@ import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
 import type { Bounds } from '../../shared/helpers/map-helpers';
 
-type OutputFormat = 'geojson' | 'wkt' | 'kml' | 'bbox' | 'postgis' | 'csv' | 'gml';
+type OutputFormat =
+  | 'geojson'
+  | 'wkt'
+  | 'kml'
+  | 'bbox'
+  | 'postgis'
+  | 'csv'
+  | 'gml'
+  | 'ojp-rectangle';
 
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
@@ -59,6 +67,8 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
         return MapHelpers.boundsToCsv(this.currentBounds);
       case 'gml':
         return MapHelpers.boundsToGml(this.currentBounds);
+      case 'ojp-rectangle':
+        return MapHelpers.boundsToOjpRectangle(this.currentBounds);
       default:
         return JSON.stringify(
           MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds),
