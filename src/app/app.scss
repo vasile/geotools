@@ -39,6 +39,11 @@
   color: #2563eb;
 }
 
+.nav-link.active {
+  pointer-events: none;
+  cursor: default;
+}
+
 .app-content {
   min-height: 0;
   overflow: hidden;

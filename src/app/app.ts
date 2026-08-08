@@ -21,10 +21,23 @@ export class App {
   );
 
   protected readonly title = 'GeoTools';
+  protected readonly currentPage = computed(
+    () => this.router.parseUrl(this.currentUrl()).root.children['primary']?.segments[0]?.path
+  );
+  protected readonly bboxQueryParams = computed(() => {
+    const urlTree = this.router.parseUrl(this.currentUrl());
+    const page = urlTree.root.children['primary']?.segments[0]?.path;
+
+    return page === 'bbox' ? { ...urlTree.queryParams } : null;
+  });
   protected readonly maskQueryParams = computed(() => {
     const urlTree = this.router.parseUrl(this.currentUrl());
     const page = urlTree.root.children['primary']?.segments[0]?.path;
     const bounds = urlTree.queryParams['bounds'];
+
+    if (page === 'mask') {
+      return { ...urlTree.queryParams };
+    }
 
     return page === 'bbox' && typeof bounds === 'string' ? { bounds } : null;
   });
