@@ -10,7 +10,7 @@
       <span class="fw-semibold">{{ title }}</span>
     </a>
 
-    <nav aria-label="Main navigation">
+    <nav class="d-flex gap-2" aria-label="Main navigation">
       <a
         class="nav-link px-2"
         routerLink="/bbox"
@@ -18,6 +18,14 @@
         ariaCurrentWhenActive="page"
       >
         BBox
+      </a>
+      <a
+        class="nav-link px-2"
+        routerLink="/mask"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+      >
+        Mask
       </a>
     </nav>
   </div>
