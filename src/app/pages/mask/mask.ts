@@ -58,7 +58,7 @@ export class Mask implements AfterViewInit, OnDestroy {
   protected readonly errorMessage = signal('');
   protected readonly pointBufferError = signal('');
   protected readonly outputValue = signal(
-    JSON.stringify(mask(this.toMaskAreaInput(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS)), null, 2)
+    this.formatGeoJson(mask(this.toMaskAreaInput(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS)))
   );
   protected readonly copyStatus = signal('');
 
@@ -187,7 +187,7 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     this.errorMessage.set('');
     this.currentInput = parsed;
-    this.outputValue.set(JSON.stringify(inverseMask, null, 2));
+    this.outputValue.set(this.formatGeoJson(inverseMask));
     this.mapService.updateGeoJSONSource(INPUT_SOURCE_ID, parsed);
     this.mapService.updateGeoJSONSource(MASK_SOURCE_ID, inverseMask);
   }
@@ -200,6 +200,15 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     this.pointBufferError.set('');
     this.applyInput(this.inputControl.value);
+  }
+
+  private formatGeoJson(value: Feature<Polygon>): string {
+    return JSON.stringify(
+      value,
+      (_key, item: unknown) =>
+        typeof item === 'number' ? Number(item.toFixed(6)) : item,
+      2
+    );
   }
 
   private isMaskInput(value: unknown): value is MaskInput {
