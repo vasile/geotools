@@ -16,4 +16,13 @@ describe('MapHelpers', () => {
       ]
     ]);
   });
+
+  it('converts bounds to a closed KML polygon', () => {
+    const result = MapHelpers.boundsToKml([5, 45, 10, 48]);
+
+    expect(result).toContain('<kml xmlns="http://www.opengis.net/kml/2.2">');
+    expect(result).toContain('5,45,0');
+    expect(result).toContain('10,48,0');
+    expect(result.match(/5,45,0/g)).toHaveLength(2);
+  });
 });

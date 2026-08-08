@@ -31,4 +31,32 @@ export class MapHelpers {
       ]
     };
   }
+
+  static boundsToKml([west, south, east, north]: Bounds): string {
+    const coordinates = [
+      `${west},${south},0`,
+      `${east},${south},0`,
+      `${east},${north},0`,
+      `${west},${north},0`,
+      `${west},${south},0`
+    ].join('\n              ');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Bounding box</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${coordinates}
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>`;
+  }
 }
