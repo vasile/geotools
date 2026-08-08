@@ -1,33 +1,168 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnDestroy,
+  signal,
+  ViewChild
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import mask from '@turf/mask';
+import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import * as mapgl from 'mapbox-gl';
+import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
+import { MapHelpers } from '../../shared/helpers/map-helpers';
+
+type MaskInput = Feature<Polygon | MultiPolygon> | FeatureCollection<Polygon | MultiPolygon>;
 
 const DEFAULT_BOUNDS: [[number, number], [number, number]] = [
   [5.9559, 45.8179],
   [10.4921, 47.8085]
 ];
+const DEFAULT_INPUT = MapHelpers.boundsToPolygonFeatureCollection([
+  DEFAULT_BOUNDS[0][0],
+  DEFAULT_BOUNDS[0][1],
+  DEFAULT_BOUNDS[1][0],
+  DEFAULT_BOUNDS[1][1]
+]);
+const INPUT_SOURCE_ID = 'mask-input';
+const MASK_SOURCE_ID = 'mask-output';
 
 @Component({
   selector: 'app-mask',
+  imports: [ReactiveFormsModule],
   templateUrl: './mask.html',
   styleUrl: './mask.scss'
 })
 export class Mask implements AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
+  private currentInput: MaskInput = DEFAULT_INPUT;
 
-  constructor(private readonly mapService: MapService) {}
+  protected readonly inputControl = new FormControl(JSON.stringify(DEFAULT_INPUT, null, 2), {
+    nonNullable: true
+  });
+  protected readonly errorMessage = signal('');
+  protected readonly outputValue = signal(JSON.stringify(mask(DEFAULT_INPUT), null, 2));
+
+  constructor(
+    private readonly mapService: MapService,
+    destroyRef: DestroyRef
+  ) {
+    this.inputControl.valueChanges
+      .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
+      .subscribe((value) => this.applyInput(value));
+  }
 
   async ngAfterViewInit(): Promise<void> {
-    await this.mapService.init(this.mapContainer, {
+    const map = await this.mapService.init(this.mapContainer, {
       bounds: DEFAULT_BOUNDS,
       fitBoundsOptions: {
         padding: 48
+      }
+    });
+
+    const initialMask = mask(this.currentInput);
+
+    map.addSource(MASK_SOURCE_ID, { type: 'geojson', data: initialMask });
+    map.addLayer({
+      id: 'mask-fill',
+      type: 'fill',
+      source: MASK_SOURCE_ID,
+      paint: {
+        'fill-color': '#0f172a',
+        'fill-opacity': 0.32
+      }
+    });
+    map.addSource(INPUT_SOURCE_ID, { type: 'geojson', data: this.currentInput });
+    map.addLayer({
+      id: 'mask-input-fill',
+      type: 'fill',
+      source: INPUT_SOURCE_ID,
+      paint: {
+        'fill-color': '#2563eb',
+        'fill-opacity': 0.08
+      }
+    });
+    map.addLayer({
+      id: 'mask-input-outline',
+      type: 'line',
+      source: INPUT_SOURCE_ID,
+      paint: {
+        'line-color': '#2563eb',
+        'line-width': 2.5
       }
     });
   }
 
   ngOnDestroy(): void {
     this.mapService.destroy();
+  }
+
+  private applyInput(value: string): void {
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      this.errorMessage.set('Enter valid JSON.');
+      return;
+    }
+
+    if (!this.isMaskInput(parsed)) {
+      this.errorMessage.set('Use a Polygon or MultiPolygon Feature or FeatureCollection.');
+      return;
+    }
+
+    let inverseMask: Feature<Polygon>;
+
+    try {
+      inverseMask = mask(parsed);
+    } catch {
+      this.errorMessage.set('The polygon geometry could not be converted into a mask.');
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.currentInput = parsed;
+    this.outputValue.set(JSON.stringify(inverseMask, null, 2));
+    this.mapService.updateGeoJSONSource(INPUT_SOURCE_ID, parsed);
+    this.mapService.updateGeoJSONSource(MASK_SOURCE_ID, inverseMask);
+  }
+
+  private isMaskInput(value: unknown): value is MaskInput {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const geoJson = value as { type?: unknown; geometry?: { type?: unknown }; features?: unknown };
+
+    if (geoJson.type === 'Feature') {
+      return this.isPolygonType(geoJson.geometry?.type);
+    }
+
+    if (geoJson.type !== 'FeatureCollection' || !Array.isArray(geoJson.features)) {
+      return false;
+    }
+
+    return (
+      geoJson.features.length > 0 &&
+      geoJson.features.every((feature) => {
+        if (!feature || typeof feature !== 'object') {
+          return false;
+        }
+
+        const candidate = feature as { type?: unknown; geometry?: { type?: unknown } };
+        return candidate.type === 'Feature' && this.isPolygonType(candidate.geometry?.type);
+      })
+    );
+  }
+
+  private isPolygonType(value: unknown): value is 'Polygon' | 'MultiPolygon' {
+    return value === 'Polygon' || value === 'MultiPolygon';
   }
 }

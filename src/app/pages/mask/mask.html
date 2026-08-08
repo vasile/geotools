@@ -4,6 +4,40 @@
   </section>
 
   <aside class="controls-pane" aria-label="GeoJSON mask controls">
-    <div class="empty-panel" aria-label="Empty mask controls panel"></div>
+    <section class="control-panel" aria-labelledby="maskInputHeading">
+      <div class="panel-heading">
+        <h1 id="maskInputHeading">GeoJSON input</h1>
+        <p>Enter polygon features to create an inverse world mask.</p>
+      </div>
+
+      <label class="visually-hidden" for="maskInput">Polygon or MultiPolygon GeoJSON</label>
+      <textarea
+        id="maskInput"
+        class="form-control mask-input"
+        [class.is-invalid]="errorMessage()"
+        [formControl]="inputControl"
+        aria-describedby="maskInputError"
+        spellcheck="false"
+      ></textarea>
+      @if (errorMessage()) {
+        <div class="invalid-feedback" id="maskInputError">{{ errorMessage() }}</div>
+      }
+    </section>
+
+    <section class="control-panel" aria-labelledby="maskOutputHeading">
+      <div class="panel-heading">
+        <h2 id="maskOutputHeading">Inverse GeoJSON</h2>
+        <p>World polygon with the input geometry removed.</p>
+      </div>
+
+      <label class="visually-hidden" for="maskOutput">Formatted inverse GeoJSON</label>
+      <textarea
+        id="maskOutput"
+        class="form-control mask-output"
+        [value]="outputValue()"
+        readonly
+        spellcheck="false"
+      ></textarea>
+    </section>
   </aside>
 </div>
