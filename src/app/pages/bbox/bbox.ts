@@ -14,7 +14,7 @@ import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { MapService } from '../../services/map.service';
 import { Bounds, MapHelpers } from '../../shared/helpers/map-helpers';
 
-const SWITZERLAND_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
+const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
 const BOUNDS_OUTLINE_LAYER_ID = 'bbox-outline';
@@ -30,10 +30,10 @@ export class Bbox implements AfterViewInit, OnDestroy {
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
 
   private map?: mapgl.Map;
-  private currentBounds = SWITZERLAND_BOUNDS;
+  private currentBounds = DEFAULT_BOUNDS;
   private readonly bboxChanges = new Subject<string>();
 
-  protected bboxValue = SWITZERLAND_BOUNDS.join(',');
+  protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected errorMessage = '';
 
   constructor(
@@ -48,8 +48,8 @@ export class Bbox implements AfterViewInit, OnDestroy {
   async ngAfterViewInit(): Promise<void> {
     this.map = await this.mapService.init(this.mapContainer, {
       bounds: [
-        [SWITZERLAND_BOUNDS[0], SWITZERLAND_BOUNDS[1]],
-        [SWITZERLAND_BOUNDS[2], SWITZERLAND_BOUNDS[3]]
+        [this.currentBounds[0], this.currentBounds[1]],
+        [this.currentBounds[2], this.currentBounds[3]]
       ],
       fitBoundsOptions: {
         padding: 48
