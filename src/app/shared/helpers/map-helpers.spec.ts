@@ -17,6 +17,23 @@ describe('MapHelpers', () => {
     ]);
   });
 
+  it('converts bounds to four labelled corner handles', () => {
+    const result = MapHelpers.boundsToHandleFeatureCollection([5, 45, 10, 48]);
+
+    expect(result.features.map((feature) => feature.properties.corner)).toEqual([
+      'sw',
+      'se',
+      'ne',
+      'nw'
+    ]);
+    expect(result.features.map((feature) => feature.geometry.coordinates)).toEqual([
+      [5, 45],
+      [10, 45],
+      [10, 48],
+      [5, 48]
+    ]);
+  });
+
   it('converts bounds to a closed KML polygon', () => {
     const result = MapHelpers.boundsToKml([5, 45, 10, 48]);
 

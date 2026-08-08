@@ -1,6 +1,7 @@
-import type { FeatureCollection, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
 
 export type Bounds = [west: number, south: number, east: number, north: number];
+export type BoundsCorner = 'sw' | 'se' | 'ne' | 'nw';
 
 export class MapHelpers {
   static boundsToPolygonFeatureCollection([
@@ -28,6 +29,23 @@ export class MapHelpers {
             ]
           }
         }
+      ]
+    };
+  }
+
+  static boundsToHandleFeatureCollection([
+    west,
+    south,
+    east,
+    north
+  ]: Bounds): FeatureCollection<Point, { corner: BoundsCorner }> {
+    return {
+      type: 'FeatureCollection',
+      features: [
+        MapHelpers.pointFeature(west, south, 'sw'),
+        MapHelpers.pointFeature(east, south, 'se'),
+        MapHelpers.pointFeature(east, north, 'ne'),
+        MapHelpers.pointFeature(west, north, 'nw')
       ]
     };
   }
@@ -109,5 +127,20 @@ export class MapHelpers {
     <siri:Latitude>${south}</siri:Latitude>
   </LowerRight>
 </Rectangle>`;
+  }
+
+  private static pointFeature(
+    longitude: number,
+    latitude: number,
+    corner: BoundsCorner
+  ): Feature<Point, { corner: BoundsCorner }> {
+    return {
+      type: 'Feature',
+      properties: { corner },
+      geometry: {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      }
+    };
   }
 }
