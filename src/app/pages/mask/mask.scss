@@ -1,0 +1,55 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+.mask-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.map-pane,
+.map {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.map-pane {
+  position: relative;
+  overflow: hidden;
+  background: #e7edf3;
+}
+
+.controls-pane {
+  min-width: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  background: #f8fafc;
+  border-left: 1px solid #dee2e6;
+}
+
+.empty-panel {
+  min-height: 12rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 767.98px) {
+  .mask-layout {
+    grid-template-rows: minmax(22rem, 58dvh) auto;
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .controls-pane {
+    border-top: 1px solid #dee2e6;
+    border-left: 0;
+  }
+}
