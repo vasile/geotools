@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import bbox from '@turf/bbox';
 import buffer from '@turf/buffer';
 import difference from '@turf/difference';
@@ -89,8 +90,21 @@ export class Mask implements AfterViewInit, OnDestroy {
 
   constructor(
     private readonly mapService: MapService,
+    route: ActivatedRoute,
     destroyRef: DestroyRef
   ) {
+    const routeBounds = this.parseBounds(route.snapshot.queryParamMap.get('bounds'));
+
+    if (routeBounds) {
+      this.currentInput = MapHelpers.boundsToPolygonFeatureCollection(routeBounds);
+      this.inputControl.setValue(JSON.stringify(this.currentInput, null, 2), { emitEvent: false });
+      this.outputValue.set(
+        this.formatGeoJson(
+          this.createInverseMask(this.currentInput, DEFAULT_POINT_BUFFER_METERS)
+        )
+      );
+    }
+
     this.inputControl.valueChanges
       .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe((value) => this.applyInput(value));
@@ -101,8 +115,12 @@ export class Mask implements AfterViewInit, OnDestroy {
   }
 
   async ngAfterViewInit(): Promise<void> {
+    const [west, south, east, north] = bbox(this.currentInput);
     const map = await this.mapService.init(this.mapContainer, {
-      bounds: DEFAULT_BOUNDS,
+      bounds: [
+        [west, south],
+        [east, north]
+      ],
       fitBoundsOptions: {
         padding: 48
       }
@@ -241,6 +259,36 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     this.pointBufferError.set('');
     this.applyInput(this.inputControl.value);
+  }
+
+  private parseBounds(value: string | null): [number, number, number, number] | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const coordinates = value.split(',').map((coordinate) => Number(coordinate.trim()));
+
+    if (
+      coordinates.length !== 4 ||
+      coordinates.some((coordinate) => !Number.isFinite(coordinate))
+    ) {
+      return undefined;
+    }
+
+    const [west, south, east, north] = coordinates;
+
+    if (
+      west < -180 ||
+      east > 180 ||
+      south < -90 ||
+      north > 90 ||
+      west >= east ||
+      south >= north
+    ) {
+      return undefined;
+    }
+
+    return [west, south, east, north];
   }
 
   private formatGeoJson(value: Feature<Polygon | MultiPolygon>): string {
