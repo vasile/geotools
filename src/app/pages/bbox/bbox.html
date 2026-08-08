@@ -19,6 +19,7 @@
             class="form-control"
             [class.is-invalid]="errorMessage"
             [(ngModel)]="bboxValue"
+            (ngModelChange)="bboxValueChanged($event)"
             placeholder="swx,swy,nex,ney"
             aria-describedby="bboxHelp bboxError"
           />

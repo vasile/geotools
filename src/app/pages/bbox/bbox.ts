@@ -22,11 +22,15 @@ export class Bbox implements AfterViewInit, OnDestroy {
 
   private map?: mapgl.Map;
   private currentBounds = SWITZERLAND_BOUNDS;
+  private readonly bboxChanges = new Subject<string>();
 
   protected bboxValue = SWITZERLAND_BOUNDS.join(',');
   protected errorMessage = '';
 
   constructor(private readonly mapService: MapService) {}
+    this.bboxChanges
+      .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
+      .subscribe(() => this.applyBounds(false));
 
   async ngAfterViewInit(): Promise<void> {
     this.map = await this.mapService.init(this.mapContainer, {
@@ -61,6 +65,9 @@ export class Bbox implements AfterViewInit, OnDestroy {
       );
     }
   }
+
+  protected bboxValueChanged(value: string): void {
+    this.bboxChanges.next(value);
   }
 
   ngOnDestroy(): void {
