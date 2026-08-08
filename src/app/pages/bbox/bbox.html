@@ -43,6 +43,7 @@
         name="outputFormat"
         class="form-select form-select-sm output-format"
         [(ngModel)]="outputFormat"
+        (ngModelChange)="outputFormatChanged($event)"
       >
         <option value="geojson">GeoJSON</option>
         <option value="wkt">WKT</option>

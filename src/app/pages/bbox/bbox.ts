@@ -28,6 +28,21 @@ type OutputFormat =
   | 'gml'
   | 'ojp-rectangle';
 
+const OUTPUT_FORMATS: OutputFormat[] = [
+  'geojson',
+  'wkt',
+  'kml',
+  'bbox',
+  'postgis',
+  'csv',
+  'gml',
+  'ojp-rectangle'
+];
+
+function isOutputFormat(value: string | null): value is OutputFormat {
+  return value !== null && OUTPUT_FORMATS.includes(value as OutputFormat);
+}
+
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
@@ -96,13 +111,19 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       }
     }
 
+    const routeFormat = this.route.snapshot.queryParamMap.get('format');
+
+    if (isOutputFormat(routeFormat)) {
+      this.outputFormat = routeFormat;
+    }
+
     this.bboxChanges
       .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe(() => this.applyBounds(false));
   }
 
   ngOnInit(): void {
-    this.updateQueryParam(this.currentBounds);
+    this.updateQueryParams(this.currentBounds);
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -130,7 +151,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.currentBounds = bounds;
     this.errorMessage = '';
     this.drawBounds(bounds);
-    this.updateQueryParam(bounds);
+    this.updateQueryParams(bounds);
 
     if (fitMap) {
       this.mapService.fitBounds(
@@ -145,6 +166,11 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   protected bboxValueChanged(value: string): void {
     this.bboxChanges.next(value);
+  }
+
+  protected outputFormatChanged(format: OutputFormat): void {
+    this.outputFormat = format;
+    this.updateQueryParams(this.currentBounds);
   }
 
   protected async copyOutput(): Promise<void> {
@@ -193,10 +219,13 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data);
   }
 
-  private updateQueryParam(bounds: Bounds): void {
+  private updateQueryParams(bounds: Bounds): void {
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { bounds: bounds.join(',') },
+      queryParams: {
+        bounds: bounds.join(','),
+        format: this.outputFormat === 'geojson' ? null : this.outputFormat
+      },
       queryParamsHandling: 'merge',
       replaceUrl: true
     });
