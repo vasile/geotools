@@ -3,7 +3,6 @@
 Browser-based geographic utilities built with Angular, Bootstrap, Mapbox GL and Turf.
 
 - [Live example](https://vasile.github.io/geo)
-- [Source code](https://github.com/vasile/geotools)
 
 ## Features
 
