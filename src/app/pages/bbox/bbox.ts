@@ -17,7 +17,7 @@ import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
 import type { Bounds } from '../../shared/helpers/map-helpers';
 
-type OutputFormat = 'geojson' | 'kml';
+type OutputFormat = 'geojson' | 'wkt' | 'kml' | 'bbox' | 'postgis' | 'csv' | 'gml';
 
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
@@ -43,11 +43,26 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   protected outputFormat: OutputFormat = 'geojson';
 
   protected get outputValue(): string {
-    if (this.outputFormat === 'kml') {
-      return MapHelpers.boundsToKml(this.currentBounds);
+    switch (this.outputFormat) {
+      case 'wkt':
+        return MapHelpers.boundsToWkt(this.currentBounds);
+      case 'kml':
+        return MapHelpers.boundsToKml(this.currentBounds);
+      case 'bbox':
+        return MapHelpers.boundsToJson(this.currentBounds);
+      case 'postgis':
+        return MapHelpers.boundsToPostgis(this.currentBounds);
+      case 'csv':
+        return MapHelpers.boundsToCsv(this.currentBounds);
+      case 'gml':
+        return MapHelpers.boundsToGml(this.currentBounds);
+      default:
+        return JSON.stringify(
+          MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds),
+          null,
+          2
+        );
     }
-
-    return JSON.stringify(MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds), null, 2);
   }
 
   constructor(

@@ -45,7 +45,12 @@
         [(ngModel)]="outputFormat"
       >
         <option value="geojson">GeoJSON</option>
+        <option value="wkt">WKT</option>
         <option value="kml">KML</option>
+        <option value="bbox">BBox array</option>
+        <option value="postgis">PostGIS SQL</option>
+        <option value="csv">CSV</option>
+        <option value="gml">GML</option>
       </select>
 
       <label class="visually-hidden" for="formattedOutput">Formatted BBox output</label>
