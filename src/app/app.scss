@@ -44,6 +44,17 @@
   cursor: default;
 }
 
+.source-link {
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.source-link:hover {
+  color: #2563eb;
+}
+
 .app-content {
   min-height: 0;
   overflow: hidden;
