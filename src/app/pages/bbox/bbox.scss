@@ -26,8 +26,7 @@
 
 .controls-pane {
   display: grid;
-  grid-auto-rows: minmax(9rem, max-content);
-  align-content: start;
+  grid-template-rows: max-content minmax(0, 1fr);
   gap: 1rem;
   min-width: 0;
   padding: 1rem;
@@ -76,9 +75,16 @@
 }
 
 .geojson-output {
-  min-height: 20rem;
-  resize: vertical;
+  flex: 1;
+  min-height: 0;
+  resize: none;
   white-space: pre;
+}
+
+.output-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
 }
 
 @media (max-width: 767.98px) {
@@ -90,7 +96,12 @@
   }
 
   .controls-pane {
+    grid-template-rows: max-content auto;
     border-top: 1px solid #dee2e6;
     border-left: 0;
+  }
+
+  .geojson-output {
+    min-height: 20rem;
   }
 }
