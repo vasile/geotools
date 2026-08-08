@@ -28,7 +28,7 @@ const BOUNDS_OUTLINE_LAYER_ID = 'bbox-outline';
   templateUrl: './bbox.html',
   styleUrl: './bbox.scss'
 })
-export class Bbox implements AfterViewInit, OnDestroy {
+export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
 
@@ -41,11 +41,29 @@ export class Bbox implements AfterViewInit, OnDestroy {
 
   constructor(
     private readonly mapService: MapService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
     destroyRef: DestroyRef
   ) {
+    const routeBounds = this.route.snapshot.queryParamMap.get('bounds');
+
+    if (routeBounds) {
+      this.bboxValue = routeBounds;
+      const parsedBounds = this.parseBounds(routeBounds);
+
+      if (parsedBounds) {
+        this.currentBounds = parsedBounds;
+        this.errorMessage = '';
+      }
+    }
+
     this.bboxChanges
       .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe(() => this.applyBounds(false));
+  }
+
+  ngOnInit(): void {
+    this.updateQueryParam(this.currentBounds);
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -73,6 +91,7 @@ export class Bbox implements AfterViewInit, OnDestroy {
     this.currentBounds = bounds;
     this.errorMessage = '';
     this.drawBounds(bounds);
+    this.updateQueryParam(bounds);
 
     if (fitMap) {
       this.mapService.fitBounds(
@@ -120,6 +139,15 @@ export class Bbox implements AfterViewInit, OnDestroy {
     const data = MapHelpers.boundsToPolygonFeatureCollection(bounds);
 
     this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data);
+  }
+
+  private updateQueryParam(bounds: Bounds): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { bounds: bounds.join(',') },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   private addBoundsLayers(): void {
