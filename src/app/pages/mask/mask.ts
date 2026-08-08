@@ -95,17 +95,28 @@ export class Mask implements AfterViewInit, OnDestroy {
     destroyRef: DestroyRef
   ) {
     const routePoints = this.parseCoordinates(this.route.snapshot.queryParamMap.get('coords'));
+    const routeLines = this.route.snapshot.queryParamMap
+      .getAll('line')
+      .map((value) => this.parseLineString(value))
+      .filter((feature): feature is Feature<LineString> => feature !== undefined);
     const routeBounds = this.parseBounds(this.route.snapshot.queryParamMap.get('bounds'));
     const routeBuffer = this.parseBuffer(this.route.snapshot.queryParamMap.get('buffer'));
+    const routeLinearFeatures: Array<Feature<Point | LineString>> = [
+      ...(routePoints?.features ?? []),
+      ...routeLines
+    ];
 
     if (routeBuffer !== undefined) {
       this.pointBufferControl.setValue(routeBuffer, { emitEvent: false });
     }
 
-    if (routePoints || routeBounds) {
-      this.currentInput = routePoints ?? MapHelpers.boundsToPolygonFeatureCollection(routeBounds!);
+    if (routeLinearFeatures.length > 0 || routeBounds) {
+      this.currentInput =
+        routeLinearFeatures.length > 0
+          ? { type: 'FeatureCollection', features: routeLinearFeatures }
+          : MapHelpers.boundsToPolygonFeatureCollection(routeBounds!);
       this.inputControl.setValue(JSON.stringify(this.currentInput, null, 2), { emitEvent: false });
-      this.hasBufferableFeatures.set(Boolean(routePoints));
+      this.hasBufferableFeatures.set(routeLinearFeatures.length > 0);
       this.outputValue.set(
         this.formatGeoJson(
           this.createInverseMask(this.currentInput, this.pointBufferControl.value)
@@ -350,6 +361,40 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     const bufferMeters = Number(value);
     return Number.isFinite(bufferMeters) && bufferMeters > 0 ? bufferMeters : undefined;
+  }
+
+  private parseLineString(value: string): Feature<LineString> | undefined {
+    const values = value.split(',').map((coordinate) => Number(coordinate.trim()));
+
+    if (
+      values.length < 4 ||
+      values.length % 2 !== 0 ||
+      values.some((coordinate) => !Number.isFinite(coordinate))
+    ) {
+      return undefined;
+    }
+
+    const coordinates: LineString['coordinates'] = [];
+
+    for (let index = 0; index < values.length; index += 2) {
+      const longitude = values[index];
+      const latitude = values[index + 1];
+
+      if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+        return undefined;
+      }
+
+      coordinates.push([longitude, latitude]);
+    }
+
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'LineString',
+        coordinates
+      }
+    };
   }
 
   private updateBufferQueryParam(value: number): void {
