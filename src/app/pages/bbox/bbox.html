@@ -31,6 +31,20 @@
         <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
       </form>
     </section>
-    <div class="empty-panel" aria-label="Empty results panel"></div>
+    <section class="control-panel" aria-labelledby="geoJsonHeading">
+      <div class="panel-heading">
+        <h2 id="geoJsonHeading">GeoJSON</h2>
+        <p>Polygon feature collection for the current bounding box.</p>
+      </div>
+
+      <label class="visually-hidden" for="geoJsonOutput">BBox as formatted GeoJSON</label>
+      <textarea
+        id="geoJsonOutput"
+        class="form-control geojson-output"
+        [value]="geoJsonValue"
+        readonly
+        spellcheck="false"
+      ></textarea>
+    </section>
   </aside>
 </div>

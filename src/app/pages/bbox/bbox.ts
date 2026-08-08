@@ -39,6 +39,10 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected errorMessage = '';
 
+  protected get geoJsonValue(): string {
+    return JSON.stringify(MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds), null, 2);
+  }
+
   constructor(
     private readonly mapService: MapService,
     private readonly route: ActivatedRoute,

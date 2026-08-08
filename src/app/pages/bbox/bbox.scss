@@ -36,8 +36,7 @@
   border-left: 1px solid #dee2e6;
 }
 
-.control-panel,
-.empty-panel {
+.control-panel {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 0.6rem;
@@ -52,7 +51,8 @@
   margin-bottom: 1.25rem;
 }
 
-.panel-heading h1 {
+.panel-heading h1,
+.panel-heading h2 {
   margin-bottom: 0.35rem;
   font-size: 1.05rem;
   font-weight: 650;
@@ -75,8 +75,10 @@
   font-size: 0.8rem;
 }
 
-.empty-panel {
-  min-height: 9rem;
+.geojson-output {
+  min-height: 20rem;
+  resize: vertical;
+  white-space: pre;
 }
 
 @media (max-width: 767.98px) {
