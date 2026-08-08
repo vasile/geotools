@@ -1,9 +1,51 @@
-.hero {
-  background:
-    radial-gradient(circle at 20% 20%, rgba(13, 110, 253, 0.12), transparent 35%),
-    linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+:host {
+  display: grid;
+  grid-template-rows: 3.5rem minmax(0, 1fr) 2.25rem;
+  min-height: 100dvh;
+  color: #17212b;
 }
 
-.hero p {
-  max-width: 42rem;
+.app-header {
+  z-index: 10;
+}
+
+.brand-mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  color: #fff;
+  background: #2563eb;
+  border-radius: 0.5rem;
+}
+
+.brand-mark svg {
+  width: 1.2rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.nav-link {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.nav-link.active,
+.nav-link:hover {
+  color: #2563eb;
+}
+
+.app-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  color: #64748b;
 }
