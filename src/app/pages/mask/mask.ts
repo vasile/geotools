@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import bbox from '@turf/bbox';
 import mask from '@turf/mask';
 import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import * as mapgl from 'mapbox-gl';
@@ -116,6 +117,18 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     clearTimeout(this.copyStatusTimer);
     this.copyStatusTimer = setTimeout(() => this.copyStatus.set(''), 2000);
+  }
+
+  protected zoomToInput(): void {
+    const [west, south, east, north] = bbox(this.currentInput);
+
+    this.mapService.fitBounds(
+      [
+        [west, south],
+        [east, north]
+      ],
+      { padding: 48, duration: 600 }
+    );
   }
 
   private applyInput(value: string): void {

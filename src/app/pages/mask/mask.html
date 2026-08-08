@@ -22,6 +22,16 @@
       @if (errorMessage()) {
         <div class="invalid-feedback" id="maskInputError">{{ errorMessage() }}</div>
       }
+      <div class="input-actions">
+        <button
+          class="btn btn-primary btn-sm"
+          type="button"
+          [disabled]="errorMessage()"
+          (click)="zoomToInput()"
+        >
+          Zoom to input
+        </button>
+      </div>
     </section>
 
     <section class="control-panel" aria-labelledby="maskOutputHeading">
