@@ -3,16 +3,19 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  OnInit,
   OnDestroy,
   ViewChild
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import * as mapgl from 'mapbox-gl';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
-import { Bounds, MapHelpers } from '../../shared/helpers/map-helpers';
+import { MapHelpers } from '../../shared/helpers/map-helpers';
+import type { Bounds } from '../../shared/helpers/map-helpers';
 
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
