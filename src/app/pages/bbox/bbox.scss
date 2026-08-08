@@ -74,11 +74,15 @@
   font-size: 0.8rem;
 }
 
-.geojson-output {
+.formatted-output {
   flex: 1;
   min-height: 0;
   resize: none;
   white-space: pre;
+}
+
+.output-format {
+  margin-bottom: 0.75rem;
 }
 
 .output-panel {
@@ -101,7 +105,7 @@
     border-left: 0;
   }
 
-  .geojson-output {
+  .formatted-output {
     min-height: 20rem;
   }
 }

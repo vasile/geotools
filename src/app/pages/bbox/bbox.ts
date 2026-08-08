@@ -17,6 +17,8 @@ import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
 import type { Bounds } from '../../shared/helpers/map-helpers';
 
+type OutputFormat = 'geojson' | 'kml';
+
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
@@ -38,8 +40,13 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected errorMessage = '';
+  protected outputFormat: OutputFormat = 'geojson';
 
-  protected get geoJsonValue(): string {
+  protected get outputValue(): string {
+    if (this.outputFormat === 'kml') {
+      return MapHelpers.boundsToKml(this.currentBounds);
+    }
+
     return JSON.stringify(MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds), null, 2);
   }
 

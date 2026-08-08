@@ -31,17 +31,28 @@
         <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
       </form>
     </section>
-    <section class="control-panel output-panel" aria-labelledby="geoJsonHeading">
+    <section class="control-panel output-panel" aria-labelledby="outputHeading">
       <div class="panel-heading">
-        <h2 id="geoJsonHeading">GeoJSON</h2>
-        <p>Polygon feature collection for the current bounding box.</p>
+        <h2 id="outputHeading">Output</h2>
+        <p>Formatted polygon for the current bounding box.</p>
       </div>
 
-      <label class="visually-hidden" for="geoJsonOutput">BBox as formatted GeoJSON</label>
+      <label class="form-label" for="outputFormat">Format</label>
+      <select
+        id="outputFormat"
+        name="outputFormat"
+        class="form-select form-select-sm output-format"
+        [(ngModel)]="outputFormat"
+      >
+        <option value="geojson">GeoJSON</option>
+        <option value="kml">KML</option>
+      </select>
+
+      <label class="visually-hidden" for="formattedOutput">Formatted BBox output</label>
       <textarea
-        id="geoJsonOutput"
-        class="form-control geojson-output"
-        [value]="geoJsonValue"
+        id="formattedOutput"
+        class="form-control formatted-output"
+        [value]="outputValue"
         readonly
         spellcheck="false"
       ></textarea>
