@@ -95,4 +95,19 @@ export class MapHelpers {
   </gml:exterior>
 </gml:Polygon>`;
   }
+
+  static boundsToOjpRectangle([west, south, east, north]: Bounds): string {
+    return `<Rectangle
+  xmlns="http://www.vdv.de/ojp"
+  xmlns:siri="http://www.siri.org.uk/siri">
+  <UpperLeft>
+    <siri:Longitude>${west}</siri:Longitude>
+    <siri:Latitude>${north}</siri:Latitude>
+  </UpperLeft>
+  <LowerRight>
+    <siri:Longitude>${east}</siri:Longitude>
+    <siri:Latitude>${south}</siri:Latitude>
+  </LowerRight>
+</Rectangle>`;
+  }
 }

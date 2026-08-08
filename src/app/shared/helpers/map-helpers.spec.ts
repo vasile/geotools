@@ -54,4 +54,14 @@ describe('MapHelpers', () => {
     expect(result).toContain('srsName="urn:ogc:def:crs:OGC:1.3:CRS84"');
     expect(result).toContain('<gml:posList>5 45 10 45 10 48 5 48 5 45</gml:posList>');
   });
+
+  it('converts bounds to an OJP rectangle using upper-left and lower-right corners', () => {
+    const result = MapHelpers.boundsToOjpRectangle([5, 45, 10, 48]);
+
+    expect(result).toContain('<Rectangle\n  xmlns="http://www.vdv.de/ojp"');
+    expect(result).toContain('<UpperLeft>\n    <siri:Longitude>5</siri:Longitude>');
+    expect(result).toContain('<siri:Latitude>48</siri:Latitude>');
+    expect(result).toContain('<LowerRight>\n    <siri:Longitude>10</siri:Longitude>');
+    expect(result).toContain('<siri:Latitude>45</siri:Latitude>');
+  });
 });
