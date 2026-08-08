@@ -29,10 +29,10 @@ Create and edit a geographic bounding box on a map.
 
 BBox state is reflected in the URL:
 
-```text
-/bbox?bounds=west,south,east,north
-/bbox?bounds=5.9559,45.8179,10.4921,47.8085&format=kml
-```
+| Link | Description |
+| --- | --- |
+| [`/bbox?bounds=5.9559,45.8179,10.4921,47.8085`](https://vasile.github.io/geo/bbox?bounds=5.9559,45.8179,10.4921,47.8085) | Create the Switzerland bounding box with the default GeoJSON output. |
+| [`/bbox?bounds=-73.2,59.7,-11.3,83.9&format=kml`](https://vasile.github.io/geo/bbox?bounds=-73.2,59.7,-11.3,83.9&format=kml) | Create a Greenland bounding box, clearly showing high-latitude Web Mercator distortion, and generate KML output. |
 
 The default GeoJSON format is omitted from the query string.
 
@@ -53,29 +53,14 @@ Create an inverse world geometry by subtracting the supplied GeoJSON.
 
 #### Mask query parameters
 
-Create a rectangular polygon from bounds:
-
-```text
-/mask?bounds=5.9559,45.8179,10.4921,47.8085
-```
-
-Create Point features from coordinate pairs:
-
-```text
-/mask?coords=7.4474,46.948,8.5417,47.3769&buffer=1000
-```
-
-Create one LineString:
-
-```text
-/mask?line=7.1,46.9,7.2,47,7.3,47.1&buffer=1000
-```
-
-Repeat `line` to create multiple LineStrings, and combine them with points:
-
-```text
-/mask?coords=7.4474,46.948,8.5417,47.3769&line=7.1,46.9,7.2,47&line=8.1,46.8,8.2,46.9&buffer=1000
-```
+| Link | Description |
+| --- | --- |
+| [`/mask?bounds=5.9559,45.8179,10.4921,47.8085`](https://vasile.github.io/geo/mask?bounds=5.9559,45.8179,10.4921,47.8085) | Create one rectangular Polygon from the Switzerland bounds. |
+| [`/mask?coords=7.4474,46.948,8.5417,47.3769`](https://vasile.github.io/geo/mask?coords=7.4474,46.948,8.5417,47.3769) | Create Point features for Bern and Zurich with the default 100-metre buffer. |
+| [`/mask?coords=7.4474,46.948,8.5417,47.3769&buffer=1000`](https://vasile.github.io/geo/mask?coords=7.4474,46.948,8.5417,47.3769&buffer=1000) | Create Point features for Bern and Zurich with a 1,000-metre buffer. |
+| [`/mask?line=7.1,46.9,7.2,47,7.3,47.1&buffer=1000`](https://vasile.github.io/geo/mask?line=7.1,46.9,7.2,47,7.3,47.1&buffer=1000) | Create and buffer one LineString. |
+| [`/mask?line=7.1,46.9,7.2,47&line=8.1,46.8,8.2,46.9&buffer=1000`](https://vasile.github.io/geo/mask?line=7.1,46.9,7.2,47&line=8.1,46.8,8.2,46.9&buffer=1000) | Create two separately buffered LineString features. |
+| [`/mask?coords=7.4474,46.948,8.5417,47.3769&line=7.1,46.9,7.2,47&buffer=1000`](https://vasile.github.io/geo/mask?coords=7.4474,46.948,8.5417,47.3769&line=7.1,46.9,7.2,47&buffer=1000) | Combine Point and LineString features in one input FeatureCollection. |
 
 Each `line` requires at least two coordinate pairs. When points or lines are present, they take precedence over `bounds`. The default `buffer=100` is omitted from the URL.
 
