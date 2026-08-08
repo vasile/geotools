@@ -10,15 +10,18 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import bbox from '@turf/bbox';
+import buffer from '@turf/buffer';
 import mask from '@turf/mask';
-import type { Feature, FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
 import * as mapgl from 'mapbox-gl';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
 
-type MaskInput = Feature<Polygon | MultiPolygon> | FeatureCollection<Polygon | MultiPolygon>;
+type MaskGeometry = Point | Polygon | MultiPolygon;
+type MaskInput = Feature<MaskGeometry> | FeatureCollection<MaskGeometry>;
+type MaskAreaInput = FeatureCollection<Polygon | MultiPolygon>;
 
 const DEFAULT_BOUNDS: [[number, number], [number, number]] = [
   [5.9559, 45.8179],
@@ -32,6 +35,7 @@ const DEFAULT_INPUT = MapHelpers.boundsToPolygonFeatureCollection([
 ]);
 const INPUT_SOURCE_ID = 'mask-input';
 const MASK_SOURCE_ID = 'mask-output';
+const DEFAULT_POINT_BUFFER_METERS = 100;
 
 @Component({
   selector: 'app-mask',
@@ -48,8 +52,14 @@ export class Mask implements AfterViewInit, OnDestroy {
   protected readonly inputControl = new FormControl(JSON.stringify(DEFAULT_INPUT, null, 2), {
     nonNullable: true
   });
+  protected readonly pointBufferControl = new FormControl(DEFAULT_POINT_BUFFER_METERS, {
+    nonNullable: true
+  });
   protected readonly errorMessage = signal('');
-  protected readonly outputValue = signal(JSON.stringify(mask(DEFAULT_INPUT), null, 2));
+  protected readonly pointBufferError = signal('');
+  protected readonly outputValue = signal(
+    JSON.stringify(mask(this.toMaskAreaInput(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS)), null, 2)
+  );
   protected readonly copyStatus = signal('');
 
   constructor(
@@ -59,6 +69,10 @@ export class Mask implements AfterViewInit, OnDestroy {
     this.inputControl.valueChanges
       .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
       .subscribe((value) => this.applyInput(value));
+
+    this.pointBufferControl.valueChanges
+      .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
+      .subscribe((value) => this.applyPointBuffer(value));
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -69,7 +83,9 @@ export class Mask implements AfterViewInit, OnDestroy {
       }
     });
 
-    const initialMask = mask(this.currentInput);
+    const initialMask = mask(
+      this.toMaskAreaInput(this.currentInput, DEFAULT_POINT_BUFFER_METERS)
+    );
 
     map.addSource(MASK_SOURCE_ID, { type: 'geojson', data: initialMask });
     map.addLayer({
@@ -100,6 +116,18 @@ export class Mask implements AfterViewInit, OnDestroy {
         'line-width': 2.5
       }
     });
+    map.addLayer({
+      id: 'mask-input-points',
+      type: 'circle',
+      source: INPUT_SOURCE_ID,
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-radius': 5,
+        'circle-color': '#2563eb',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 1.5
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -127,7 +155,7 @@ export class Mask implements AfterViewInit, OnDestroy {
         [west, south],
         [east, north]
       ],
-      { padding: 48, duration: 600 }
+      { padding: 48, duration: 600, maxZoom: 16 }
     );
   }
 
@@ -142,14 +170,16 @@ export class Mask implements AfterViewInit, OnDestroy {
     }
 
     if (!this.isMaskInput(parsed)) {
-      this.errorMessage.set('Use a Polygon or MultiPolygon Feature or FeatureCollection.');
+      this.errorMessage.set(
+        'Use Point, Polygon, or MultiPolygon features in a Feature or FeatureCollection.'
+      );
       return;
     }
 
     let inverseMask: Feature<Polygon>;
 
     try {
-      inverseMask = mask(parsed);
+      inverseMask = mask(this.toMaskAreaInput(parsed, this.pointBufferControl.value));
     } catch {
       this.errorMessage.set('The polygon geometry could not be converted into a mask.');
       return;
@@ -162,6 +192,16 @@ export class Mask implements AfterViewInit, OnDestroy {
     this.mapService.updateGeoJSONSource(MASK_SOURCE_ID, inverseMask);
   }
 
+  private applyPointBuffer(value: number): void {
+    if (!Number.isFinite(value) || value <= 0) {
+      this.pointBufferError.set('Enter a distance greater than 0 metres.');
+      return;
+    }
+
+    this.pointBufferError.set('');
+    this.applyInput(this.inputControl.value);
+  }
+
   private isMaskInput(value: unknown): value is MaskInput {
     if (!value || typeof value !== 'object') {
       return false;
@@ -170,7 +210,7 @@ export class Mask implements AfterViewInit, OnDestroy {
     const geoJson = value as { type?: unknown; geometry?: { type?: unknown }; features?: unknown };
 
     if (geoJson.type === 'Feature') {
-      return this.isPolygonType(geoJson.geometry?.type);
+      return this.isMaskGeometryType(geoJson.geometry?.type);
     }
 
     if (geoJson.type !== 'FeatureCollection' || !Array.isArray(geoJson.features)) {
@@ -185,12 +225,37 @@ export class Mask implements AfterViewInit, OnDestroy {
         }
 
         const candidate = feature as { type?: unknown; geometry?: { type?: unknown } };
-        return candidate.type === 'Feature' && this.isPolygonType(candidate.geometry?.type);
+        return candidate.type === 'Feature' && this.isMaskGeometryType(candidate.geometry?.type);
       })
     );
   }
 
-  private isPolygonType(value: unknown): value is 'Polygon' | 'MultiPolygon' {
-    return value === 'Polygon' || value === 'MultiPolygon';
+  private isMaskGeometryType(value: unknown): value is MaskGeometry['type'] {
+    return value === 'Point' || value === 'Polygon' || value === 'MultiPolygon';
+  }
+
+  private toMaskAreaInput(input: MaskInput, pointBufferMeters: number): MaskAreaInput {
+    const features = input.type === 'FeatureCollection' ? input.features : [input];
+    const areaFeatures = features.map((feature): Feature<Polygon | MultiPolygon> => {
+      if (feature.geometry.type !== 'Point') {
+        return feature as Feature<Polygon | MultiPolygon>;
+      }
+
+      const buffered = buffer(feature as Feature<Point>, pointBufferMeters, {
+        units: 'meters',
+        steps: 32
+      });
+
+      if (!buffered) {
+        throw new Error('Unable to buffer Point feature.');
+      }
+
+      return buffered;
+    });
+
+    return {
+      type: 'FeatureCollection',
+      features: areaFeatures
+    };
   }
 }

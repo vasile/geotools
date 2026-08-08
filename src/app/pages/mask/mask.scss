@@ -76,8 +76,27 @@
 
 .input-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: 0.75rem;
+}
+
+.point-buffer-field {
+  width: 12rem;
+}
+
+.point-buffer-field > label {
+  margin-bottom: 0.25rem;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.buffer-error {
+  margin-top: 0.25rem;
+  color: var(--bs-form-invalid-color);
+  font-size: 0.75rem;
 }
 
 .output-actions {
