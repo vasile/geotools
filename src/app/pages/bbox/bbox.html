@@ -4,7 +4,32 @@
   </section>
 
   <aside class="controls-pane" aria-label="Bounding box controls">
-    <div class="empty-panel" aria-label="Empty controls panel"></div>
+    <section class="control-panel">
+      <div class="panel-heading">
+        <h1>Bounding box</h1>
+        <p>Enter the southwest and northeast coordinates.</p>
+      </div>
+
+      <form (ngSubmit)="applyBounds()" novalidate>
+        <label class="form-label" for="bboxInput">Coordinates</label>
+        <div class="input-group" [class.has-validation]="errorMessage">
+          <input
+            id="bboxInput"
+            name="bbox"
+            class="form-control"
+            [class.is-invalid]="errorMessage"
+            [(ngModel)]="bboxValue"
+            placeholder="swx,swy,nex,ney"
+            aria-describedby="bboxHelp bboxError"
+          />
+          <button class="btn btn-primary" type="submit">Apply</button>
+          @if (errorMessage) {
+            <div class="invalid-feedback" id="bboxError">{{ errorMessage }}</div>
+          }
+        </div>
+        <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
+      </form>
+    </section>
     <div class="empty-panel" aria-label="Empty results panel"></div>
   </aside>
 </div>

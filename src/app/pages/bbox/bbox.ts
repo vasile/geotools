@@ -1,34 +1,44 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
-import { Map, NavigationControl, StyleSpecification } from 'maplibre-gl';
+import { FormsModule } from '@angular/forms';
+import type { FeatureCollection, Polygon } from 'geojson';
+import * as mapgl from 'mapbox-gl';
 
-const LIGHT_MAP_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    cartoLight: {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png'
-      ],
-      tileSize: 512,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    }
-  },
-  layers: [
-    {
-      id: 'carto-light',
-      type: 'raster',
-      source: 'cartoLight',
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-};
+import { MapService } from '../../services/map.service';
+
+type Bounds = [west: number, south: number, east: number, north: number];
+
+const SWITZERLAND_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
+const BOUNDS_SOURCE_ID = 'bbox-polygon';
+const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
+const BOUNDS_OUTLINE_LAYER_ID = 'bbox-outline';
+
+function createBoundsFeatureCollection([west, south, east, north]: Bounds): FeatureCollection<Polygon> {
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [west, south],
+              [east, south],
+              [east, north],
+              [west, north],
+              [west, south]
+            ]
+          ]
+        }
+      }
+    ]
+  };
+}
 
 @Component({
   selector: 'app-bbox',
+  imports: [FormsModule],
   templateUrl: './bbox.html',
   styleUrl: './bbox.scss'
 })
@@ -36,20 +46,100 @@ export class Bbox implements AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   private readonly mapContainer!: ElementRef<HTMLDivElement>;
 
-  private map?: Map;
+  private map?: mapgl.Map;
+  private currentBounds = SWITZERLAND_BOUNDS;
 
-  ngAfterViewInit(): void {
-    this.map = new Map({
-      container: this.mapContainer.nativeElement,
-      style: LIGHT_MAP_STYLE,
-      center: [8.23, 46.82],
-      zoom: 6.2
+  protected bboxValue = SWITZERLAND_BOUNDS.join(',');
+  protected errorMessage = '';
+
+  constructor(private readonly mapService: MapService) {}
+
+  async ngAfterViewInit(): Promise<void> {
+    this.map = await this.mapService.init(this.mapContainer, {
+      bounds: [
+        [SWITZERLAND_BOUNDS[0], SWITZERLAND_BOUNDS[1]],
+        [SWITZERLAND_BOUNDS[2], SWITZERLAND_BOUNDS[3]]
+      ]
     });
 
-    this.map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+    this.addBoundsLayers();
+    this.drawBounds(this.currentBounds, false);
+  }
+
+  protected applyBounds(): void {
+    const bounds = this.parseBounds(this.bboxValue);
+
+    if (!bounds) {
+      return;
+    }
+
+    this.currentBounds = bounds;
+    this.errorMessage = '';
+    this.drawBounds(bounds, true);
   }
 
   ngOnDestroy(): void {
-    this.map?.remove();
+    this.mapService.destroy();
+  }
+
+  private parseBounds(value: string): Bounds | undefined {
+    const parts = value.split(',').map((part) => Number(part.trim()));
+
+    if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) {
+      this.errorMessage = 'Enter four numeric coordinates separated by commas.';
+      return undefined;
+    }
+
+    const [west, south, east, north] = parts;
+
+    if (west < -180 || east > 180 || south < -90 || north > 90) {
+      this.errorMessage = 'Longitude must be between −180 and 180; latitude between −90 and 90.';
+      return undefined;
+    }
+
+    if (west >= east || south >= north) {
+      this.errorMessage = 'Southwest coordinates must be smaller than northeast coordinates.';
+      return undefined;
+    }
+
+    return [west, south, east, north];
+  }
+
+  private drawBounds([west, south, east, north]: Bounds, animate: boolean): void {
+    const data = createBoundsFeatureCollection([west, south, east, north]);
+
+    if (!this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data)) {
+      return;
+    }
+
+    this.mapService.fitBounds([west, south, east, north], {
+      padding: 48,
+      duration: animate ? 600 : 0
+    });
+  }
+
+  private addBoundsLayers(): void {
+    this.map?.addSource(BOUNDS_SOURCE_ID, {
+      type: 'geojson',
+      data: createBoundsFeatureCollection(this.currentBounds)
+    });
+    this.map?.addLayer({
+      id: BOUNDS_FILL_LAYER_ID,
+      type: 'fill',
+      source: BOUNDS_SOURCE_ID,
+      paint: {
+        'fill-color': '#2563eb',
+        'fill-opacity': 0.18
+      }
+    });
+    this.map?.addLayer({
+      id: BOUNDS_OUTLINE_LAYER_ID,
+      type: 'line',
+      source: BOUNDS_SOURCE_ID,
+      paint: {
+        'line-color': '#1d4ed8',
+        'line-width': 3
+      }
+    });
   }
 }
