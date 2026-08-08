@@ -12,14 +12,21 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import bbox from '@turf/bbox';
 import buffer from '@turf/buffer';
 import mask from '@turf/mask';
-import type { Feature, FeatureCollection, MultiPolygon, Point, Polygon } from 'geojson';
+import type {
+  Feature,
+  FeatureCollection,
+  LineString,
+  MultiPolygon,
+  Point,
+  Polygon
+} from 'geojson';
 import * as mapgl from 'mapbox-gl';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
 
-type MaskGeometry = Point | Polygon | MultiPolygon;
+type MaskGeometry = Point | LineString | Polygon | MultiPolygon;
 type MaskInput = Feature<MaskGeometry> | FeatureCollection<MaskGeometry>;
 type MaskAreaInput = FeatureCollection<Polygon | MultiPolygon>;
 
@@ -57,6 +64,7 @@ export class Mask implements AfterViewInit, OnDestroy {
   });
   protected readonly errorMessage = signal('');
   protected readonly pointBufferError = signal('');
+  protected readonly hasBufferableFeatures = signal(false);
   protected readonly outputValue = signal(
     this.formatGeoJson(mask(this.toMaskAreaInput(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS)))
   );
@@ -102,6 +110,11 @@ export class Mask implements AfterViewInit, OnDestroy {
       id: 'mask-input-fill',
       type: 'fill',
       source: INPUT_SOURCE_ID,
+      filter: [
+        'any',
+        ['==', ['geometry-type'], 'Polygon'],
+        ['==', ['geometry-type'], 'MultiPolygon']
+      ],
       paint: {
         'fill-color': '#2563eb',
         'fill-opacity': 0.08
@@ -171,8 +184,19 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     if (!this.isMaskInput(parsed)) {
       this.errorMessage.set(
-        'Use Point, Polygon, or MultiPolygon features in a Feature or FeatureCollection.'
+        'Use Point, LineString, Polygon, or MultiPolygon features in a Feature or FeatureCollection.'
       );
+      return;
+    }
+
+    const hasBufferableFeatures = this.containsBufferableFeatures(parsed);
+
+    if (
+      hasBufferableFeatures &&
+      (!Number.isFinite(this.pointBufferControl.value) || this.pointBufferControl.value <= 0)
+    ) {
+      this.pointBufferError.set('Enter a distance greater than 0 metres.');
+      this.hasBufferableFeatures.set(true);
       return;
     }
 
@@ -186,6 +210,8 @@ export class Mask implements AfterViewInit, OnDestroy {
     }
 
     this.errorMessage.set('');
+    this.pointBufferError.set('');
+    this.hasBufferableFeatures.set(hasBufferableFeatures);
     this.currentInput = parsed;
     this.outputValue.set(this.formatGeoJson(inverseMask));
     this.mapService.updateGeoJSONSource(INPUT_SOURCE_ID, parsed);
@@ -240,23 +266,35 @@ export class Mask implements AfterViewInit, OnDestroy {
   }
 
   private isMaskGeometryType(value: unknown): value is MaskGeometry['type'] {
-    return value === 'Point' || value === 'Polygon' || value === 'MultiPolygon';
+    return (
+      value === 'Point' ||
+      value === 'LineString' ||
+      value === 'Polygon' ||
+      value === 'MultiPolygon'
+    );
+  }
+
+  private containsBufferableFeatures(input: MaskInput): boolean {
+    const features = input.type === 'FeatureCollection' ? input.features : [input];
+    return features.some(
+      (feature) => feature.geometry.type === 'Point' || feature.geometry.type === 'LineString'
+    );
   }
 
   private toMaskAreaInput(input: MaskInput, pointBufferMeters: number): MaskAreaInput {
     const features = input.type === 'FeatureCollection' ? input.features : [input];
     const areaFeatures = features.map((feature): Feature<Polygon | MultiPolygon> => {
-      if (feature.geometry.type !== 'Point') {
+      if (feature.geometry.type !== 'Point' && feature.geometry.type !== 'LineString') {
         return feature as Feature<Polygon | MultiPolygon>;
       }
 
-      const buffered = buffer(feature as Feature<Point>, pointBufferMeters, {
+      const buffered = buffer(feature as Feature<Point | LineString>, pointBufferMeters, {
         units: 'meters',
         steps: 32
       });
 
       if (!buffered) {
-        throw new Error('Unable to buffer Point feature.');
+        throw new Error('Unable to buffer feature.');
       }
 
       return buffered;

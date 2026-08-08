@@ -77,9 +77,12 @@
 .input-actions {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: 1rem;
   margin-top: 0.75rem;
+}
+
+.input-actions > .btn {
+  margin-left: auto;
 }
 
 .point-buffer-field {

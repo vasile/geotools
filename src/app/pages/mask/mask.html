@@ -23,25 +23,27 @@
         <div class="invalid-feedback" id="maskInputError">{{ errorMessage() }}</div>
       }
       <div class="input-actions">
-        <div class="point-buffer-field">
-          <label for="pointBuffer">Point buffer</label>
-          <div class="input-group input-group-sm">
-            <input
-              id="pointBuffer"
-              class="form-control"
-              [class.is-invalid]="pointBufferError()"
-              type="number"
-              min="0.01"
-              step="1"
-              [formControl]="pointBufferControl"
-              aria-describedby="pointBufferUnit pointBufferError"
-            />
-            <span class="input-group-text" id="pointBufferUnit">metres</span>
+        @if (hasBufferableFeatures()) {
+          <div class="point-buffer-field">
+            <label for="pointBuffer">Point / line buffer</label>
+            <div class="input-group input-group-sm">
+              <input
+                id="pointBuffer"
+                class="form-control"
+                [class.is-invalid]="pointBufferError()"
+                type="number"
+                min="0.01"
+                step="1"
+                [formControl]="pointBufferControl"
+                aria-describedby="pointBufferUnit pointBufferError"
+              />
+              <span class="input-group-text" id="pointBufferUnit">metres</span>
+            </div>
+            @if (pointBufferError()) {
+              <div class="buffer-error" id="pointBufferError">{{ pointBufferError() }}</div>
+            }
           </div>
-          @if (pointBufferError()) {
-            <div class="buffer-error" id="pointBufferError">{{ pointBufferError() }}</div>
-          }
-        </div>
+        }
         <button
           class="btn btn-primary btn-sm"
           type="button"
