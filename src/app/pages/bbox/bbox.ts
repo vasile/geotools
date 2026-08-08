@@ -1,40 +1,14 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { FeatureCollection, Polygon } from 'geojson';
 import * as mapgl from 'mapbox-gl';
 
 import { MapService } from '../../services/map.service';
-
-type Bounds = [west: number, south: number, east: number, north: number];
+import { Bounds, MapHelpers } from '../../shared/helpers/map-helpers';
 
 const SWITZERLAND_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
 const BOUNDS_OUTLINE_LAYER_ID = 'bbox-outline';
-
-function createBoundsFeatureCollection([west, south, east, north]: Bounds): FeatureCollection<Polygon> {
-  return {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [west, south],
-              [east, south],
-              [east, north],
-              [west, north],
-              [west, south]
-            ]
-          ]
-        }
-      }
-    ]
-  };
-}
 
 @Component({
   selector: 'app-bbox',
@@ -106,7 +80,7 @@ export class Bbox implements AfterViewInit, OnDestroy {
   }
 
   private drawBounds([west, south, east, north]: Bounds, animate: boolean): void {
-    const data = createBoundsFeatureCollection([west, south, east, north]);
+    const data = MapHelpers.boundsToPolygonFeatureCollection([west, south, east, north]);
 
     if (!this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, data)) {
       return;
@@ -121,7 +95,7 @@ export class Bbox implements AfterViewInit, OnDestroy {
   private addBoundsLayers(): void {
     this.map?.addSource(BOUNDS_SOURCE_ID, {
       type: 'geojson',
-      data: createBoundsFeatureCollection(this.currentBounds)
+      data: MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds)
     });
     this.map?.addLayer({
       id: BOUNDS_FILL_LAYER_ID,
