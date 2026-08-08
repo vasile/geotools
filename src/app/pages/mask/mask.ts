@@ -11,7 +11,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import bbox from '@turf/bbox';
 import buffer from '@turf/buffer';
-import mask from '@turf/mask';
+import difference from '@turf/difference';
+import rewind from '@turf/rewind';
 import type {
   Feature,
   FeatureCollection,
@@ -43,6 +44,22 @@ const DEFAULT_INPUT = MapHelpers.boundsToPolygonFeatureCollection([
 const INPUT_SOURCE_ID = 'mask-input';
 const MASK_SOURCE_ID = 'mask-output';
 const DEFAULT_POINT_BUFFER_METERS = 100;
+const WORLD_POLYGON: Feature<Polygon> = {
+  type: 'Feature',
+  properties: {},
+  geometry: {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-180, -90],
+        [180, -90],
+        [180, 90],
+        [-180, 90],
+        [-180, -90]
+      ]
+    ]
+  }
+};
 
 @Component({
   selector: 'app-mask',
@@ -66,7 +83,7 @@ export class Mask implements AfterViewInit, OnDestroy {
   protected readonly pointBufferError = signal('');
   protected readonly hasBufferableFeatures = signal(false);
   protected readonly outputValue = signal(
-    this.formatGeoJson(mask(this.toMaskAreaInput(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS)))
+    this.formatGeoJson(this.createInverseMask(DEFAULT_INPUT, DEFAULT_POINT_BUFFER_METERS))
   );
   protected readonly copyStatus = signal('');
 
@@ -91,9 +108,7 @@ export class Mask implements AfterViewInit, OnDestroy {
       }
     });
 
-    const initialMask = mask(
-      this.toMaskAreaInput(this.currentInput, DEFAULT_POINT_BUFFER_METERS)
-    );
+    const initialMask = this.createInverseMask(this.currentInput, DEFAULT_POINT_BUFFER_METERS);
 
     map.addSource(MASK_SOURCE_ID, { type: 'geojson', data: initialMask });
     map.addLayer({
@@ -200,10 +215,10 @@ export class Mask implements AfterViewInit, OnDestroy {
       return;
     }
 
-    let inverseMask: Feature<Polygon>;
+    let inverseMask: Feature<Polygon | MultiPolygon>;
 
     try {
-      inverseMask = mask(this.toMaskAreaInput(parsed, this.pointBufferControl.value));
+      inverseMask = this.createInverseMask(parsed, this.pointBufferControl.value);
     } catch {
       this.errorMessage.set('The polygon geometry could not be converted into a mask.');
       return;
@@ -228,13 +243,30 @@ export class Mask implements AfterViewInit, OnDestroy {
     this.applyInput(this.inputControl.value);
   }
 
-  private formatGeoJson(value: Feature<Polygon>): string {
+  private formatGeoJson(value: Feature<Polygon | MultiPolygon>): string {
     return JSON.stringify(
       value,
       (_key, item: unknown) =>
         typeof item === 'number' ? Number(item.toFixed(6)) : item,
       2
     );
+  }
+
+  private createInverseMask(
+    input: MaskInput,
+    pointBufferMeters: number
+  ): Feature<Polygon | MultiPolygon> {
+    const areaInput = this.toMaskAreaInput(input, pointBufferMeters);
+    const inverseMask = difference({
+      type: 'FeatureCollection',
+      features: [WORLD_POLYGON, ...areaInput.features]
+    });
+
+    if (!inverseMask) {
+      throw new Error('The input covers the complete mask area.');
+    }
+
+    return rewind(inverseMask) as Feature<Polygon | MultiPolygon>;
   }
 
   private isMaskInput(value: unknown): value is MaskInput {
