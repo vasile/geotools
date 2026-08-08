@@ -40,7 +40,7 @@ export class Bbox implements AfterViewInit, OnDestroy {
     this.drawBounds(this.currentBounds, false);
   }
 
-  protected applyBounds(): void {
+  protected applyBounds(fitMap = true): void {
     const bounds = this.parseBounds(this.bboxValue);
 
     if (!bounds) {
@@ -49,7 +49,18 @@ export class Bbox implements AfterViewInit, OnDestroy {
 
     this.currentBounds = bounds;
     this.errorMessage = '';
-    this.drawBounds(bounds, true);
+    this.drawBounds(bounds);
+
+    if (fitMap) {
+      this.mapService.fitBounds(
+        [
+          [bounds[0], bounds[1]],
+          [bounds[2], bounds[3]]
+        ],
+        { padding: 48, duration: 600 }
+      );
+    }
+  }
   }
 
   ngOnDestroy(): void {
