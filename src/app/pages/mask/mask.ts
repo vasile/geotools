@@ -26,7 +26,9 @@ import * as mapgl from 'mapbox-gl';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
+import { GeometryNavigationService } from '../../services/geometry-navigation.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
+import type { Bounds } from '../../shared/helpers/map-helpers';
 
 type MaskGeometry = Point | LineString | Polygon | MultiPolygon;
 type MaskInput = Feature<MaskGeometry> | FeatureCollection<MaskGeometry>;
@@ -90,6 +92,7 @@ export class Mask implements AfterViewInit, OnDestroy {
 
   constructor(
     private readonly mapService: MapService,
+    private readonly geometryNavigation: GeometryNavigationService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     destroyRef: DestroyRef
@@ -132,6 +135,8 @@ export class Mask implements AfterViewInit, OnDestroy {
         )
       );
     }
+
+    this.updateNavigationBounds(this.currentInput);
 
     this.inputControl.valueChanges
       .pipe(debounceTime(100), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
@@ -277,6 +282,7 @@ export class Mask implements AfterViewInit, OnDestroy {
     this.pointBufferError.set('');
     this.hasBufferableFeatures.set(hasBufferableFeatures);
     this.currentInput = parsed;
+    this.updateNavigationBounds(parsed);
     this.outputValue.set(this.formatGeoJson(inverseMask));
     this.mapService.updateGeoJSONSource(INPUT_SOURCE_ID, parsed);
     this.mapService.updateGeoJSONSource(MASK_SOURCE_ID, inverseMask);
@@ -290,6 +296,15 @@ export class Mask implements AfterViewInit, OnDestroy {
 
     this.pointBufferError.set('');
     this.applyInput(this.inputControl.value);
+  }
+
+  private updateNavigationBounds(input: MaskInput): void {
+    const [west, south, east, north] = bbox(input);
+    this.geometryNavigation.setMaskInputBounds(
+      [west, south, east, north].map((coordinate) =>
+        Number(coordinate.toFixed(6))
+      ) as Bounds
+    );
   }
 
   private parseBounds(value: string | null): [number, number, number, number] | undefined {
