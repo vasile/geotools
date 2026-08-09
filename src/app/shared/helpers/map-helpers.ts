@@ -2,8 +2,58 @@ import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
 
 export type Bounds = [west: number, south: number, east: number, north: number];
 export type BoundsCorner = 'sw' | 'se' | 'ne' | 'nw';
+export type CenterCoordinate = [longitude: number, latitude: number];
+
+const EARTH_RADIUS_METERS = 6_371_008.8;
 
 export class MapHelpers {
+  static centerSizeToBounds(
+    [longitude, latitude]: CenterCoordinate,
+    widthMeters: number,
+    heightMeters: number
+  ): Bounds | undefined {
+    if (widthMeters <= 0 || heightMeters <= 0) {
+      return undefined;
+    }
+
+    const latitudeRadians = (latitude * Math.PI) / 180;
+    const longitudeScale = Math.cos(latitudeRadians);
+
+    if (Math.abs(longitudeScale) < Number.EPSILON) {
+      return undefined;
+    }
+
+    const latitudeDelta = ((heightMeters / 2) / EARTH_RADIUS_METERS) * (180 / Math.PI);
+    const longitudeDelta =
+      ((widthMeters / 2) / (EARTH_RADIUS_METERS * longitudeScale)) * (180 / Math.PI);
+    const bounds: Bounds = [
+      longitude - longitudeDelta,
+      latitude - latitudeDelta,
+      longitude + longitudeDelta,
+      latitude + latitudeDelta
+    ];
+
+    return bounds[0] >= -180 && bounds[2] <= 180 && bounds[1] >= -90 && bounds[3] <= 90
+      ? bounds
+      : undefined;
+  }
+
+  static boundsToCenterSize([west, south, east, north]: Bounds): {
+    center: CenterCoordinate;
+    widthMeters: number;
+    heightMeters: number;
+  } {
+    const center: CenterCoordinate = [(west + east) / 2, (south + north) / 2];
+    const latitudeRadians = (center[1] * Math.PI) / 180;
+
+    return {
+      center,
+      widthMeters:
+        ((east - west) * Math.PI * EARTH_RADIUS_METERS * Math.cos(latitudeRadians)) / 180,
+      heightMeters: ((north - south) * Math.PI * EARTH_RADIUS_METERS) / 180
+    };
+  }
+
   static boundsToPolygonFeatureCollection([
     west,
     south,

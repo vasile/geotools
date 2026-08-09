@@ -1,6 +1,30 @@
 import { MapHelpers } from './map-helpers';
 
 describe('MapHelpers', () => {
+  it('converts a center and dimensions in metres to bounds', () => {
+    const bounds = MapHelpers.centerSizeToBounds([8.5, 47], 1000, 500);
+
+    expect(bounds).toBeDefined();
+    expect(bounds![0]).toBeLessThan(8.5);
+    expect(bounds![1]).toBeLessThan(47);
+    expect(bounds![2]).toBeGreaterThan(8.5);
+    expect(bounds![3]).toBeGreaterThan(47);
+  });
+
+  it('converts bounds to a center and dimensions that round-trip', () => {
+    const original: [number, number, number, number] = [8.4934, 46.9978, 8.5066, 47.0022];
+    const centerSize = MapHelpers.boundsToCenterSize(original);
+    const result = MapHelpers.centerSizeToBounds(
+      centerSize.center,
+      centerSize.widthMeters,
+      centerSize.heightMeters
+    );
+
+    result?.forEach((coordinate, index) => {
+      expect(coordinate).toBeCloseTo(original[index], 10);
+    });
+  });
+
   it('converts bounds to a closed polygon feature collection', () => {
     const result = MapHelpers.boundsToPolygonFeatureCollection([5, 45, 10, 48]);
 
