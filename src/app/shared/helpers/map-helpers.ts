@@ -107,6 +107,21 @@ export class MapHelpers {
 </gml:Polygon>`;
   }
 
+  static centerRadiusToOjpCircle(
+    [longitude, latitude]: CenterCoordinate,
+    radiusMeters: number
+  ): string {
+    return `<Circle
+  xmlns="http://www.vdv.de/ojp"
+  xmlns:siri="http://www.siri.org.uk/siri">
+  <Center>
+    <siri:Longitude>${longitude}</siri:Longitude>
+    <siri:Latitude>${latitude}</siri:Latitude>
+  </Center>
+  <Radius>${radiusMeters}</Radius>
+</Circle>`;
+  }
+
   static centerSizeToBounds(
     [longitude, latitude]: CenterCoordinate,
     widthMeters: number,

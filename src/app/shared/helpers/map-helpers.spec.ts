@@ -26,6 +26,15 @@ describe('MapHelpers', () => {
     expect(MapHelpers.polygonFeatureCollectionToGml(polygon)).toContain('<gml:Polygon');
   });
 
+  it('converts a center and radius to an OJP circle', () => {
+    const result = MapHelpers.centerRadiusToOjpCircle([7.4474, 46.948], 5000);
+
+    expect(result).toContain('<Circle\n  xmlns="http://www.vdv.de/ojp"');
+    expect(result).toContain('<siri:Longitude>7.4474</siri:Longitude>');
+    expect(result).toContain('<siri:Latitude>46.948</siri:Latitude>');
+    expect(result).toContain('<Radius>5000</Radius>');
+  });
+
   it('converts a center and dimensions in metres to bounds', () => {
     const bounds = MapHelpers.centerSizeToBounds([8.5, 47], 1000, 500);
 
