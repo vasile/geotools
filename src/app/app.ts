@@ -49,6 +49,18 @@ export class App {
       return { bounds };
     }
 
+    if (
+      urlTree.queryParams['mode'] === 'circle' &&
+      typeof urlTree.queryParams['coords'] === 'string' &&
+      typeof urlTree.queryParams['r'] === 'string'
+    ) {
+      return {
+        mode: 'circle',
+        coords: urlTree.queryParams['coords'],
+        r: urlTree.queryParams['r']
+      };
+    }
+
     const coords = urlTree.queryParams['coords'];
     const width = Number(urlTree.queryParams['w']);
     const height = Number(urlTree.queryParams['h']);
