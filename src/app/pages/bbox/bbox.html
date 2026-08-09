@@ -7,28 +7,97 @@
     <section class="control-panel">
       <div class="panel-heading">
         <h1>Bounding box</h1>
-        <p>Enter the southwest and northeast coordinates.</p>
+        <p>Construct a rectangle from bounds or a center point and dimensions.</p>
       </div>
 
-      <form (ngSubmit)="applyBounds()" novalidate>
-        <label class="form-label" for="bboxInput">Coordinates</label>
-        <div class="input-group" [class.has-validation]="errorMessage">
+      <label class="form-label" for="rectangleMode">Construction mode</label>
+      <select
+        id="rectangleMode"
+        name="rectangleMode"
+        class="form-select form-select-sm construction-mode"
+        [(ngModel)]="rectangleMode"
+        (ngModelChange)="rectangleModeChanged($event)"
+      >
+        <option value="bounds">Box coordinates</option>
+        <option value="center">Center and size</option>
+      </select>
+
+      <form (ngSubmit)="applyRectangle()" novalidate>
+        @if (rectangleMode === 'bounds') {
+          <label class="form-label" for="bboxInput">Coordinates</label>
+          <div class="input-group" [class.has-validation]="errorMessage">
+            <input
+              id="bboxInput"
+              name="bbox"
+              class="form-control"
+              [class.is-invalid]="errorMessage"
+              [(ngModel)]="bboxValue"
+              (ngModelChange)="rectangleValueChanged()"
+              placeholder="swx,swy,nex,ney"
+              aria-describedby="bboxHelp bboxError"
+            />
+            <button class="btn btn-primary" type="submit">Apply</button>
+            @if (errorMessage) {
+              <div class="invalid-feedback" id="bboxError">{{ errorMessage }}</div>
+            }
+          </div>
+          <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
+        } @else {
+          <label class="form-label" for="centerInput">Center coordinates</label>
           <input
-            id="bboxInput"
-            name="bbox"
+            id="centerInput"
+            name="center"
             class="form-control"
             [class.is-invalid]="errorMessage"
-            [(ngModel)]="bboxValue"
-            (ngModelChange)="bboxValueChanged($event)"
-            placeholder="swx,swy,nex,ney"
-            aria-describedby="bboxHelp bboxError"
+            [(ngModel)]="centerValue"
+            (ngModelChange)="rectangleValueChanged()"
+            placeholder="lng,lat"
+            aria-describedby="centerHelp centerError"
           />
-          <button class="btn btn-primary" type="submit">Apply</button>
+          <div class="form-text" id="centerHelp">Format: longitude,latitude</div>
+
+          <div class="dimension-fields">
+            <div>
+              <label class="form-label" for="widthInput">Width</label>
+              <div class="input-group input-group-sm">
+                <input
+                  id="widthInput"
+                  name="width"
+                  class="form-control"
+                  type="number"
+                  min="0.01"
+                  step="1"
+                  [(ngModel)]="widthValue"
+                  (ngModelChange)="rectangleValueChanged()"
+                />
+                <span class="input-group-text">metres</span>
+              </div>
+            </div>
+            <div>
+              <label class="form-label" for="heightInput">Height</label>
+              <div class="input-group input-group-sm">
+                <input
+                  id="heightInput"
+                  name="height"
+                  class="form-control"
+                  type="number"
+                  min="0.01"
+                  step="1"
+                  [(ngModel)]="heightValue"
+                  (ngModelChange)="rectangleValueChanged()"
+                />
+                <span class="input-group-text">metres</span>
+              </div>
+            </div>
+          </div>
+
           @if (errorMessage) {
-            <div class="invalid-feedback" id="bboxError">{{ errorMessage }}</div>
+            <div class="center-error" id="centerError">{{ errorMessage }}</div>
           }
-        </div>
-        <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
+          <div class="apply-action">
+            <button class="btn btn-primary" type="submit">Apply</button>
+          </div>
+        }
         <div class="viewport-action">
           <span>or construct from</span>
           <button class="btn btn-link btn-sm" type="button" (click)="useMapViewport()">

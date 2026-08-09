@@ -13,11 +13,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import * as mapgl from 'mapbox-gl';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
+import { debounceTime, Subject } from 'rxjs';
 
 import { MapService } from '../../services/map.service';
 import { MapHelpers } from '../../shared/helpers/map-helpers';
-import type { Bounds, BoundsCorner } from '../../shared/helpers/map-helpers';
+import type {
+  Bounds,
+  BoundsCorner,
+  CenterCoordinate
+} from '../../shared/helpers/map-helpers';
+
+type RectangleMode = 'bounds' | 'center';
 
 type OutputFormat =
   | 'geojson'
@@ -45,6 +51,7 @@ function isOutputFormat(value: string | null): value is OutputFormat {
 }
 
 const DEFAULT_BOUNDS: Bounds = [5.9559, 45.8179, 10.4921, 47.8085];
+const DEFAULT_CENTER_SIZE = MapHelpers.boundsToCenterSize(DEFAULT_BOUNDS);
 const BOUNDS_SOURCE_ID = 'bbox-polygon';
 const BOUNDS_HANDLES_SOURCE_ID = 'bbox-handles';
 const BOUNDS_FILL_LAYER_ID = 'bbox-fill';
@@ -64,12 +71,16 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   private map?: mapgl.Map;
   private currentBounds = DEFAULT_BOUNDS;
-  private readonly bboxChanges = new Subject<string>();
+  private readonly rectangleChanges = new Subject<void>();
   private readonly draggedBoundsChanges = new Subject<Bounds>();
   private copyStatusTimer?: ReturnType<typeof setTimeout>;
   private activeCorner?: BoundsCorner;
 
+  protected rectangleMode: RectangleMode = 'bounds';
   protected bboxValue = DEFAULT_BOUNDS.join(',');
+  protected centerValue = DEFAULT_CENTER_SIZE.center.join(',');
+  protected widthValue = this.roundDistance(DEFAULT_CENTER_SIZE.widthMeters);
+  protected heightValue = this.roundDistance(DEFAULT_CENTER_SIZE.heightMeters);
   protected errorMessage = '';
   protected outputFormat: OutputFormat = 'geojson';
   protected readonly copyStatus = signal('');
@@ -106,9 +117,29 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     private readonly changeDetectorRef: ChangeDetectorRef,
     destroyRef: DestroyRef
   ) {
+    const routeMode = this.route.snapshot.queryParamMap.get('mode');
     const routeBounds = this.route.snapshot.queryParamMap.get('bounds');
 
-    if (routeBounds) {
+    if (routeMode === 'center') {
+      const center = this.parseCenter(this.route.snapshot.queryParamMap.get('coords') ?? '');
+      const width = this.parseDimension(this.route.snapshot.queryParamMap.get('w'));
+      const height = this.parseDimension(this.route.snapshot.queryParamMap.get('h'));
+      const bounds = center && width && height
+        ? MapHelpers.centerSizeToBounds(center, width, height)
+        : undefined;
+
+      if (center && width && height && bounds) {
+        this.rectangleMode = 'center';
+        this.centerValue = center.join(',');
+        this.widthValue = width;
+        this.heightValue = height;
+        this.currentBounds = this.roundBounds(bounds);
+        this.bboxValue = this.currentBounds.join(',');
+        this.errorMessage = '';
+      }
+    }
+
+    if (this.rectangleMode === 'bounds' && routeBounds) {
       this.bboxValue = routeBounds;
       const parsedBounds = this.parseBounds(routeBounds);
 
@@ -124,9 +155,9 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       this.outputFormat = routeFormat;
     }
 
-    this.bboxChanges
-      .pipe(debounceTime(75), distinctUntilChanged(), takeUntilDestroyed(destroyRef))
-      .subscribe(() => this.applyBounds(false));
+    this.rectangleChanges
+      .pipe(debounceTime(75), takeUntilDestroyed(destroyRef))
+      .subscribe(() => this.applyRectangle(false));
     this.draggedBoundsChanges
       .pipe(debounceTime(75), takeUntilDestroyed(destroyRef))
       .subscribe((bounds) => this.updateQueryParams(bounds));
@@ -151,7 +182,12 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.drawBounds(this.currentBounds);
   }
 
-  protected applyBounds(fitMap = true): void {
+  protected applyRectangle(fitMap = true): void {
+    if (this.rectangleMode === 'center') {
+      this.applyCenterSize(fitMap);
+      return;
+    }
+
     const bounds = this.parseBounds(this.bboxValue);
 
     if (!bounds) {
@@ -174,8 +210,15 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     }
   }
 
-  protected bboxValueChanged(value: string): void {
-    this.bboxChanges.next(value);
+  protected rectangleValueChanged(): void {
+    this.rectangleChanges.next();
+  }
+
+  protected rectangleModeChanged(mode: RectangleMode): void {
+    this.rectangleMode = mode;
+    this.syncInputsFromBounds(this.currentBounds);
+    this.errorMessage = '';
+    this.updateQueryParams(this.currentBounds);
   }
 
   protected useMapViewport(): void {
@@ -194,8 +237,8 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       this.roundCoordinate(northeast.lat)
     ];
 
-    this.bboxValue = bounds.join(',');
     this.currentBounds = bounds;
+    this.syncInputsFromBounds(bounds);
     this.errorMessage = '';
     this.drawBounds(bounds);
     this.updateQueryParams(bounds);
@@ -247,8 +290,90 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     return [west, south, east, north];
   }
 
+  private parseCenter(value: string): CenterCoordinate | undefined {
+    const parts = value.split(',').map((part) => Number(part.trim()));
+
+    if (parts.length !== 2 || parts.some((part) => !Number.isFinite(part))) {
+      this.errorMessage = 'Enter a longitude and latitude separated by a comma.';
+      return undefined;
+    }
+
+    const [longitude, latitude] = parts;
+
+    if (longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+      this.errorMessage = 'Longitude must be between −180 and 180; latitude between −90 and 90.';
+      return undefined;
+    }
+
+    return [longitude, latitude];
+  }
+
+  private parseDimension(value: unknown): number | undefined {
+    const dimension = Number(value);
+    return Number.isFinite(dimension) && dimension > 0 ? dimension : undefined;
+  }
+
+  private applyCenterSize(fitMap: boolean): void {
+    const center = this.parseCenter(this.centerValue);
+    const width = this.parseDimension(this.widthValue);
+    const height = this.parseDimension(this.heightValue);
+
+    if (!center || !width || !height) {
+      if (center && (!width || !height)) {
+        this.errorMessage = 'Width and height must be greater than 0 metres.';
+      }
+      return;
+    }
+
+    const bounds = MapHelpers.centerSizeToBounds(center, width, height);
+
+    if (!bounds) {
+      this.errorMessage = 'The rectangle extends beyond the supported longitude or latitude range.';
+      return;
+    }
+
+    this.centerValue = center.join(',');
+    this.widthValue = width;
+    this.heightValue = height;
+    this.currentBounds = this.roundBounds(bounds);
+    this.bboxValue = this.currentBounds.join(',');
+    this.errorMessage = '';
+    this.drawBounds(this.currentBounds);
+    this.updateQueryParams(this.currentBounds);
+
+    if (fitMap) {
+      this.fitBounds(this.currentBounds);
+    }
+  }
+
   private roundCoordinate(value: number): number {
     return Number(value.toFixed(6));
+  }
+
+  private roundDistance(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
+  private roundBounds(bounds: Bounds): Bounds {
+    return bounds.map((coordinate) => this.roundCoordinate(coordinate)) as Bounds;
+  }
+
+  private syncInputsFromBounds(bounds: Bounds): void {
+    this.bboxValue = bounds.join(',');
+    const centerSize = MapHelpers.boundsToCenterSize(bounds);
+    this.centerValue = centerSize.center.map((coordinate) => this.roundCoordinate(coordinate)).join(',');
+    this.widthValue = this.roundDistance(centerSize.widthMeters);
+    this.heightValue = this.roundDistance(centerSize.heightMeters);
+  }
+
+  private fitBounds(bounds: Bounds): void {
+    this.mapService.fitBounds(
+      [
+        [bounds[0], bounds[1]],
+        [bounds[2], bounds[3]]
+      ],
+      { padding: 48, duration: 600 }
+    );
   }
 
   private drawBounds(bounds: Bounds): void {
@@ -266,7 +391,11 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
-        bounds: bounds.join(','),
+        mode: this.rectangleMode === 'center' ? 'center' : null,
+        bounds: this.rectangleMode === 'bounds' ? bounds.join(',') : null,
+        coords: this.rectangleMode === 'center' ? this.centerValue : null,
+        w: this.rectangleMode === 'center' ? this.widthValue : null,
+        h: this.rectangleMode === 'center' ? this.heightValue : null,
         format: this.outputFormat === 'geojson' ? null : this.outputFormat
       },
       queryParamsHandling: 'merge',
@@ -385,7 +514,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     }
 
     this.currentBounds = bounds;
-    this.bboxValue = bounds.join(',');
+    this.syncInputsFromBounds(bounds);
     this.errorMessage = '';
     this.drawBounds(bounds);
     this.draggedBoundsChanges.next(bounds);

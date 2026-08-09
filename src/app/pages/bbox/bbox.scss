@@ -74,6 +74,29 @@
   font-size: 0.8rem;
 }
 
+.construction-mode {
+  margin-bottom: 1rem;
+}
+
+.dimension-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.center-error {
+  margin-top: 0.5rem;
+  color: var(--bs-form-invalid-color);
+  font-size: 0.8rem;
+}
+
+.apply-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
 .viewport-action {
   display: flex;
   align-items: baseline;
