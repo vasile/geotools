@@ -123,7 +123,7 @@
 
 .formatted-output {
   flex: 1;
-  min-height: 0;
+  min-height: 5rem;
   resize: none;
   white-space: pre;
 }
@@ -134,6 +134,7 @@
 
 .output-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
@@ -151,6 +152,54 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
+}
+
+@media (min-width: 768px) and (max-height: 850px) {
+  .controls-pane {
+    gap: 0.6rem;
+    padding: 0.6rem;
+  }
+
+  .control-panel {
+    padding: 0.8rem;
+  }
+
+  .panel-heading {
+    margin-bottom: 0.55rem;
+  }
+
+  .panel-heading p {
+    display: none;
+  }
+
+  .form-label {
+    margin-bottom: 0.2rem;
+  }
+
+  .construction-mode,
+  .output-format {
+    margin-bottom: 0.5rem;
+  }
+
+  .dimension-fields {
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .circle-radius-field,
+  .apply-action {
+    margin-top: 0.5rem;
+  }
+
+  .viewport-action,
+  .output-actions {
+    margin-top: 0.4rem;
+  }
+
+  .form-text {
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+  }
 }
 
 @media (max-width: 767.98px) {
