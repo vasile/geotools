@@ -94,6 +94,15 @@ export class Mask implements AfterViewInit, OnDestroy {
     private readonly router: Router,
     destroyRef: DestroyRef
   ) {
+    const routeCircleCenter =
+      this.route.snapshot.queryParamMap.get('mode') === 'circle'
+        ? this.parseCenterCoordinate(this.route.snapshot.queryParamMap.get('coords'))
+        : undefined;
+    const routeCircleRadius = this.parseBuffer(this.route.snapshot.queryParamMap.get('r'));
+    const routeCircle =
+      routeCircleCenter && routeCircleRadius
+        ? MapHelpers.centerRadiusToPolygonFeatureCollection(routeCircleCenter, routeCircleRadius)
+        : undefined;
     const routePoints = this.parseCoordinates(this.route.snapshot.queryParamMap.get('coords'));
     const routeLines = this.route.snapshot.queryParamMap
       .getAll('line')
@@ -110,11 +119,11 @@ export class Mask implements AfterViewInit, OnDestroy {
       this.pointBufferControl.setValue(routeBuffer, { emitEvent: false });
     }
 
-    if (routeLinearFeatures.length > 0 || routeBounds) {
+    if (routeCircle || routeLinearFeatures.length > 0 || routeBounds) {
       this.currentInput =
-        routeLinearFeatures.length > 0
+        routeCircle ?? (routeLinearFeatures.length > 0
           ? { type: 'FeatureCollection', features: routeLinearFeatures }
-          : MapHelpers.boundsToPolygonFeatureCollection(routeBounds!);
+          : MapHelpers.boundsToPolygonFeatureCollection(routeBounds!));
       this.inputControl.setValue(JSON.stringify(this.currentInput, null, 2), { emitEvent: false });
       this.hasBufferableFeatures.set(routeLinearFeatures.length > 0);
       this.outputValue.set(
@@ -352,6 +361,26 @@ export class Mask implements AfterViewInit, OnDestroy {
       type: 'FeatureCollection',
       features
     };
+  }
+
+  private parseCenterCoordinate(value: string | null): [number, number] | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const coordinates = value.split(',').map((coordinate) => Number(coordinate.trim()));
+
+    if (
+      coordinates.length !== 2 ||
+      coordinates.some((coordinate) => !Number.isFinite(coordinate))
+    ) {
+      return undefined;
+    }
+
+    const [longitude, latitude] = coordinates;
+    return longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90
+      ? [longitude, latitude]
+      : undefined;
   }
 
   private parseBuffer(value: string | null): number | undefined {
