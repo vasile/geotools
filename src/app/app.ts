@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { GeometryNavigationService } from './services/geometry-navigation.service';
 import { MapHelpers } from './shared/helpers/map-helpers';
 
 @Component({
@@ -13,6 +14,7 @@ import { MapHelpers } from './shared/helpers/map-helpers';
 })
 export class App {
   private readonly router = inject(Router);
+  private readonly geometryNavigation = inject(GeometryNavigationService);
   private readonly currentUrl = toSignal(
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -30,7 +32,12 @@ export class App {
     const urlTree = this.router.parseUrl(this.currentUrl());
     const page = urlTree.root.children['primary']?.segments[0]?.path;
 
-    return page === 'bbox' ? { ...urlTree.queryParams } : null;
+    if (page === 'bbox') {
+      return { ...urlTree.queryParams };
+    }
+
+    const maskBounds = this.geometryNavigation.maskInputBounds();
+    return page === 'mask' && maskBounds ? { bounds: maskBounds.join(',') } : null;
   });
   protected readonly maskQueryParams = computed(() => {
     const urlTree = this.router.parseUrl(this.currentUrl());
