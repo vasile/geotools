@@ -3,6 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 
+import { MapHelpers } from './shared/helpers/map-helpers';
+
 @Component({
   selector: 'app-root',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
@@ -39,6 +41,41 @@ export class App {
       return { ...urlTree.queryParams };
     }
 
-    return page === 'bbox' && typeof bounds === 'string' ? { bounds } : null;
+    if (page !== 'bbox') {
+      return null;
+    }
+
+    if (typeof bounds === 'string') {
+      return { bounds };
+    }
+
+    const coords = urlTree.queryParams['coords'];
+    const width = Number(urlTree.queryParams['w']);
+    const height = Number(urlTree.queryParams['h']);
+
+    if (urlTree.queryParams['mode'] !== 'center' || typeof coords !== 'string') {
+      return null;
+    }
+
+    const center = coords.split(',').map(Number);
+
+    if (
+      center.length !== 2 ||
+      center.some((coordinate) => !Number.isFinite(coordinate)) ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(height)
+    ) {
+      return null;
+    }
+
+    const centerBounds = MapHelpers.centerSizeToBounds(
+      [center[0], center[1]],
+      width,
+      height
+    );
+
+    return centerBounds
+      ? { bounds: centerBounds.map((coordinate) => Number(coordinate.toFixed(6))).join(',') }
+      : null;
   });
 }
