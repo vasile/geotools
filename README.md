@@ -41,7 +41,7 @@ BBox state is reflected in the URL:
 
 Bounds mode and the default GeoJSON format are omitted from the query string. Center mode uses `mode=center`, `coords=longitude,latitude`, and positive `w` and `h` dimensions in metres. Circle mode uses `mode=circle`, `coords=longitude,latitude`, and a positive `r` radius in metres.
 
-For circles, GeoJSON, WKT, KML and GML contain the approximated circle polygon. BBox array, PostGIS envelope, CSV and OJP Rectangle contain its enclosing bounds.
+For circles, GeoJSON, WKT, KML and GML contain the approximated circle polygon, while OJP uses its native `Circle` structure. BBox array, PostGIS envelope and CSV contain the enclosing bounds.
 
 ### GeoMask
 
