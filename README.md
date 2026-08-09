@@ -36,8 +36,6 @@ BBox state is reflected in the URL:
 | [`/bbox?bounds=-73.2,59.7,-11.3,83.9&format=kml`](https://vasile.github.io/geo/bbox?bounds=-73.2,59.7,-11.3,83.9&format=kml) | Create a Greenland bounding box, clearly showing high-latitude Web Mercator distortion, and generate KML output. |
 | [`/bbox?mode=center&coords=7.4474,46.948&w=10000&h=5000`](https://vasile.github.io/geo/bbox?mode=center&coords=7.4474,46.948&w=10000&h=5000) | Create a rectangle centered on Bern with a width of 10,000 metres and height of 5,000 metres. |
 
-The default GeoJSON format is omitted from the query string.
-
 ### GeoMask
 
 Create an inverse world geometry by subtracting the supplied GeoJSON.
