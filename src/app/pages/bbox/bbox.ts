@@ -93,6 +93,17 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   protected outputFormat: OutputFormat = 'geojson';
   protected readonly copyStatus = signal('');
 
+  protected get modeDescription(): string {
+    switch (this.rectangleMode) {
+      case 'center':
+        return 'Define a box from its center, width and height in metres.';
+      case 'circle':
+        return 'Define a circle from its center and radius in metres.';
+      default:
+        return 'Define a box from its west, south, east and north coordinates.';
+    }
+  }
+
   protected get outputDescription(): string {
     return this.rectangleMode === 'circle'
       ? 'Circle geometry, or its enclosing bounds for rectangle-only formats.'

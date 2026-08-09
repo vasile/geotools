@@ -63,6 +63,27 @@
   font-size: 0.875rem;
 }
 
+.heading-row,
+.output-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.heading-row h1,
+.output-heading h2 {
+  margin: 0;
+}
+
+.heading-row + p {
+  margin-top: 0.5rem;
+}
+
+.mode-switch {
+  flex: 0 0 auto;
+}
+
 .form-label {
   font-size: 0.875rem;
   font-weight: 600;
@@ -74,8 +95,14 @@
   font-size: 0.8rem;
 }
 
-.construction-mode {
-  margin-bottom: 1rem;
+.primary-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.primary-input-row .input-group {
+  min-width: 0;
 }
 
 .dimension-fields {
@@ -86,6 +113,7 @@
 }
 
 .circle-radius-field {
+  width: min(100%, 14rem);
   margin-top: 0.9rem;
 }
 
@@ -93,12 +121,6 @@
   margin-top: 0.5rem;
   color: var(--bs-form-invalid-color);
   font-size: 0.8rem;
-}
-
-.apply-action {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0.75rem;
 }
 
 .viewport-action {
@@ -129,7 +151,14 @@
 }
 
 .output-format {
-  margin-bottom: 0.75rem;
+  width: 9.5rem;
+  flex: 0 0 auto;
+}
+
+.output-description {
+  margin: -0.75rem 0 0.75rem;
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 .output-actions {
@@ -176,18 +205,12 @@
     margin-bottom: 0.2rem;
   }
 
-  .construction-mode,
-  .output-format {
-    margin-bottom: 0.5rem;
-  }
-
   .dimension-fields {
     gap: 0.5rem;
     margin-top: 0.5rem;
   }
 
-  .circle-radius-field,
-  .apply-action {
+  .circle-radius-field {
     margin-top: 0.5rem;
   }
 
@@ -196,9 +219,8 @@
     margin-top: 0.4rem;
   }
 
-  .form-text {
-    margin-top: 0.15rem;
-    font-size: 0.72rem;
+  .output-description {
+    display: none;
   }
 }
 

@@ -6,136 +6,151 @@
   <aside class="controls-pane" aria-label="Bounding box controls">
     <section class="control-panel">
       <div class="panel-heading">
-        <h1>Bounding box</h1>
-        <p>Construct a box or circle from geographic coordinates.</p>
+        <div class="heading-row">
+          <h1>Bounding box</h1>
+          <div class="btn-group btn-group-sm mode-switch" role="group" aria-label="Construction mode">
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="rectangleMode === 'bounds'"
+            [attr.aria-pressed]="rectangleMode === 'bounds'"
+            type="button"
+            (click)="rectangleModeChanged('bounds')"
+          >
+            Box
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="rectangleMode === 'center'"
+            [attr.aria-pressed]="rectangleMode === 'center'"
+            type="button"
+            (click)="rectangleModeChanged('center')"
+          >
+            Center
+          </button>
+          <button
+            class="btn btn-outline-secondary"
+            [class.active]="rectangleMode === 'circle'"
+            [attr.aria-pressed]="rectangleMode === 'circle'"
+            type="button"
+            (click)="rectangleModeChanged('circle')"
+          >
+            Circle
+          </button>
+          </div>
+        </div>
+        <p>{{ modeDescription }}</p>
       </div>
-
-      <label class="form-label" for="rectangleMode">Construction mode</label>
-      <select
-        id="rectangleMode"
-        name="rectangleMode"
-        class="form-select form-select-sm construction-mode"
-        [(ngModel)]="rectangleMode"
-        (ngModelChange)="rectangleModeChanged($event)"
-      >
-        <option value="bounds">Box coordinates</option>
-        <option value="center">Center and size</option>
-        <option value="circle">Circle</option>
-      </select>
 
       <form (ngSubmit)="applyRectangle()" novalidate>
         @if (rectangleMode === 'bounds') {
-          <label class="form-label" for="bboxInput">Coordinates</label>
-          <div class="input-group" [class.has-validation]="errorMessage">
-            <input
-              id="bboxInput"
-              name="bbox"
-              class="form-control"
-              [class.is-invalid]="errorMessage"
-              [(ngModel)]="bboxValue"
-              (ngModelChange)="rectangleValueChanged()"
-              placeholder="swx,swy,nex,ney"
-              aria-describedby="bboxHelp bboxError"
-            />
+          <div class="primary-input-row">
+            <div class="input-group">
+              <span class="input-group-text">Coords</span>
+              <input
+                id="bboxInput"
+                name="bbox"
+                class="form-control"
+                [class.is-invalid]="errorMessage"
+                [(ngModel)]="bboxValue"
+                (ngModelChange)="rectangleValueChanged()"
+                placeholder="west,south,east,north"
+                aria-label="West, south, east and north coordinates"
+                aria-describedby="bboxError"
+              />
+            </div>
             <button class="btn btn-primary" type="submit">Apply</button>
-            @if (errorMessage) {
-              <div class="invalid-feedback" id="bboxError">{{ errorMessage }}</div>
-            }
           </div>
-          <div class="form-text" id="bboxHelp">Format: west,south,east,north</div>
         } @else if (rectangleMode === 'center') {
-          <label class="form-label" for="centerInput">Center coordinates</label>
-          <input
-            id="centerInput"
-            name="center"
-            class="form-control"
-            [class.is-invalid]="errorMessage"
-            [(ngModel)]="centerValue"
-            (ngModelChange)="rectangleValueChanged()"
-            placeholder="lng,lat"
-            aria-describedby="centerHelp centerError"
-          />
-          <div class="form-text" id="centerHelp">Format: longitude,latitude</div>
+          <div class="primary-input-row">
+            <div class="input-group">
+              <span class="input-group-text">Center</span>
+              <input
+                id="centerInput"
+                name="center"
+                class="form-control"
+                [class.is-invalid]="errorMessage"
+                [(ngModel)]="centerValue"
+                (ngModelChange)="rectangleValueChanged()"
+                placeholder="longitude,latitude"
+                aria-label="Center longitude and latitude"
+                aria-describedby="bboxError"
+              />
+            </div>
+            <button class="btn btn-primary" type="submit">Apply</button>
+          </div>
 
           <div class="dimension-fields">
-            <div>
-              <label class="form-label" for="widthInput">Width</label>
-              <div class="input-group input-group-sm">
-                <input
-                  id="widthInput"
-                  name="width"
-                  class="form-control"
-                  type="number"
-                  min="1"
-                  step="1"
-                  [(ngModel)]="widthValue"
-                  (ngModelChange)="rectangleValueChanged()"
-                />
-                <span class="input-group-text">metres</span>
-              </div>
-            </div>
-            <div>
-              <label class="form-label" for="heightInput">Height</label>
-              <div class="input-group input-group-sm">
-                <input
-                  id="heightInput"
-                  name="height"
-                  class="form-control"
-                  type="number"
-                  min="1"
-                  step="1"
-                  [(ngModel)]="heightValue"
-                  (ngModelChange)="rectangleValueChanged()"
-                />
-                <span class="input-group-text">metres</span>
-              </div>
-            </div>
-          </div>
-
-          @if (errorMessage) {
-            <div class="center-error" id="centerError">{{ errorMessage }}</div>
-          }
-          <div class="apply-action">
-            <button class="btn btn-primary" type="submit">Apply</button>
-          </div>
-        } @else {
-          <label class="form-label" for="circleCenterInput">Center coordinates</label>
-          <input
-            id="circleCenterInput"
-            name="circleCenter"
-            class="form-control"
-            [class.is-invalid]="errorMessage"
-            [(ngModel)]="centerValue"
-            (ngModelChange)="rectangleValueChanged()"
-            placeholder="lng,lat"
-            aria-describedby="circleCenterHelp circleError"
-          />
-          <div class="form-text" id="circleCenterHelp">Format: longitude,latitude</div>
-
-          <div class="circle-radius-field">
-            <label class="form-label" for="radiusInput">Radius</label>
             <div class="input-group input-group-sm">
+              <span class="input-group-text">W</span>
               <input
-                id="radiusInput"
-                name="radius"
+                id="widthInput"
+                name="width"
                 class="form-control"
                 type="number"
                 min="1"
                 step="1"
-                [(ngModel)]="radiusValue"
+                [(ngModel)]="widthValue"
                 (ngModelChange)="rectangleValueChanged()"
+                aria-label="Width in metres"
               />
-              <span class="input-group-text">metres</span>
+              <span class="input-group-text">m</span>
+            </div>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">H</span>
+              <input
+                id="heightInput"
+                name="height"
+                class="form-control"
+                type="number"
+                min="1"
+                step="1"
+                [(ngModel)]="heightValue"
+                (ngModelChange)="rectangleValueChanged()"
+                aria-label="Height in metres"
+              />
+              <span class="input-group-text">m</span>
             </div>
           </div>
-
-          @if (errorMessage) {
-            <div class="center-error" id="circleError">{{ errorMessage }}</div>
-          }
-          <div class="apply-action">
+        } @else {
+          <div class="primary-input-row">
+            <div class="input-group">
+              <span class="input-group-text">Center</span>
+              <input
+                id="circleCenterInput"
+                name="circleCenter"
+                class="form-control"
+                [class.is-invalid]="errorMessage"
+                [(ngModel)]="centerValue"
+                (ngModelChange)="rectangleValueChanged()"
+                placeholder="longitude,latitude"
+                aria-label="Circle center longitude and latitude"
+                aria-describedby="bboxError"
+              />
+            </div>
             <button class="btn btn-primary" type="submit">Apply</button>
           </div>
+
+          <div class="circle-radius-field input-group input-group-sm">
+            <span class="input-group-text">Radius</span>
+            <input
+              id="radiusInput"
+              name="radius"
+              class="form-control"
+              type="number"
+              min="1"
+              step="1"
+              [(ngModel)]="radiusValue"
+              (ngModelChange)="rectangleValueChanged()"
+              aria-label="Radius in metres"
+            />
+            <span class="input-group-text">m</span>
+          </div>
         }
+
+        @if (errorMessage) {
+          <div class="center-error" id="bboxError">{{ errorMessage }}</div>
+        }
+
         <div class="viewport-action">
           <span>or construct from</span>
           <button class="btn btn-link btn-sm" type="button" (click)="useMapViewport()">
@@ -144,31 +159,31 @@
         </div>
       </form>
     </section>
-    <section class="control-panel output-panel" aria-labelledby="outputHeading">
-      <div class="panel-heading">
-        <h2 id="outputHeading">Output</h2>
-        <p>{{ outputDescription }}</p>
-      </div>
 
-      <label class="form-label" for="outputFormat">Format</label>
-      <select
-        id="outputFormat"
-        name="outputFormat"
-        class="form-select form-select-sm output-format"
-        [(ngModel)]="outputFormat"
-        (ngModelChange)="outputFormatChanged($event)"
-      >
-        <option value="geojson">GeoJSON</option>
-        <option value="wkt">WKT</option>
-        <option value="kml">KML</option>
-        <option value="bbox">BBox array</option>
-        <option value="postgis">PostGIS SQL</option>
-        <option value="csv">CSV</option>
-        <option value="gml">GML</option>
-        <option value="ojp-rectangle">
-          OJP {{ rectangleMode === 'circle' ? 'Circle' : 'Rectangle' }}
-        </option>
-      </select>
+    <section class="control-panel output-panel" aria-labelledby="outputHeading">
+      <div class="panel-heading output-heading">
+        <h2 id="outputHeading">Output</h2>
+        <select
+          id="outputFormat"
+          name="outputFormat"
+          class="form-select form-select-sm output-format"
+          [(ngModel)]="outputFormat"
+          (ngModelChange)="outputFormatChanged($event)"
+          aria-label="Output format"
+        >
+          <option value="geojson">GeoJSON</option>
+          <option value="wkt">WKT</option>
+          <option value="kml">KML</option>
+          <option value="bbox">BBox array</option>
+          <option value="postgis">PostGIS SQL</option>
+          <option value="csv">CSV</option>
+          <option value="gml">GML</option>
+          <option value="ojp-rectangle">
+            OJP {{ rectangleMode === 'circle' ? 'Circle' : 'Rectangle' }}
+          </option>
+        </select>
+      </div>
+      <p class="output-description">{{ outputDescription }}</p>
 
       <label class="visually-hidden" for="formattedOutput">Formatted BBox output</label>
       <textarea
