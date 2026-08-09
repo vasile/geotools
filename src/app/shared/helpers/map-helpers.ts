@@ -1,12 +1,112 @@
+import circle from '@turf/circle';
 import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
 
 export type Bounds = [west: number, south: number, east: number, north: number];
 export type BoundsCorner = 'sw' | 'se' | 'ne' | 'nw';
 export type CenterCoordinate = [longitude: number, latitude: number];
+export type CircleHandle = 'center' | 'radius';
 
 const EARTH_RADIUS_METERS = 6_371_008.8;
 
 export class MapHelpers {
+  static centerRadiusToPolygonFeatureCollection(
+    center: CenterCoordinate,
+    radiusMeters: number
+  ): FeatureCollection<Polygon> {
+    const circleFeature = circle(center, radiusMeters, { units: 'meters', steps: 64 });
+    circleFeature.geometry.coordinates = circleFeature.geometry.coordinates.map((ring) =>
+      ring.map(([longitude, latitude]) => [
+        Number(longitude.toFixed(6)),
+        Number(latitude.toFixed(6))
+      ])
+    );
+
+    return {
+      type: 'FeatureCollection',
+      features: [circleFeature]
+    };
+  }
+
+  static circleToHandleFeatureCollection(
+    center: CenterCoordinate,
+    circlePolygon: FeatureCollection<Polygon>
+  ): FeatureCollection<Point, { handle: CircleHandle }> {
+    const ring = circlePolygon.features[0].geometry.coordinates[0];
+    const radiusCoordinate = ring.reduce((eastmost, coordinate) =>
+      coordinate[0] > eastmost[0] ? coordinate : eastmost
+    );
+
+    return {
+      type: 'FeatureCollection',
+      features: [
+        MapHelpers.circleHandleFeature(center, 'center'),
+        MapHelpers.circleHandleFeature(radiusCoordinate, 'radius')
+      ]
+    };
+  }
+
+  static polygonFeatureCollectionToBounds(
+    polygon: FeatureCollection<Polygon>
+  ): Bounds {
+    const coordinates = polygon.features.flatMap((feature) => feature.geometry.coordinates.flat());
+    const longitudes = coordinates.map((coordinate) => coordinate[0]);
+    const latitudes = coordinates.map((coordinate) => coordinate[1]);
+
+    return [
+      Math.min(...longitudes),
+      Math.min(...latitudes),
+      Math.max(...longitudes),
+      Math.max(...latitudes)
+    ];
+  }
+
+  static polygonFeatureCollectionToWkt(polygon: FeatureCollection<Polygon>): string {
+    const rings = polygon.features[0].geometry.coordinates
+      .map((ring) => `(${ring.map(([x, y]) => `${x} ${y}`).join(', ')})`)
+      .join(', ');
+    return `POLYGON(${rings})`;
+  }
+
+  static polygonFeatureCollectionToKml(polygon: FeatureCollection<Polygon>): string {
+    const coordinates = polygon.features[0].geometry.coordinates[0]
+      .map(([x, y]) => `${x},${y},0`)
+      .join('\n              ');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Circle</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              ${coordinates}
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>`;
+  }
+
+  static polygonFeatureCollectionToGml(polygon: FeatureCollection<Polygon>): string {
+    const positions = polygon.features[0].geometry.coordinates[0]
+      .map(([x, y]) => `${x} ${y}`)
+      .join(' ');
+
+    return `<gml:Polygon
+  xmlns:gml="http://www.opengis.net/gml/3.2"
+  srsName="urn:ogc:def:crs:OGC:1.3:CRS84">
+  <gml:exterior>
+    <gml:LinearRing>
+      <gml:posList>${positions}</gml:posList>
+    </gml:LinearRing>
+  </gml:exterior>
+</gml:Polygon>`;
+  }
+
   static centerSizeToBounds(
     [longitude, latitude]: CenterCoordinate,
     widthMeters: number,
@@ -190,6 +290,20 @@ export class MapHelpers {
       geometry: {
         type: 'Point',
         coordinates: [longitude, latitude]
+      }
+    };
+  }
+
+  private static circleHandleFeature(
+    coordinates: number[],
+    handle: CircleHandle
+  ): Feature<Point, { handle: CircleHandle }> {
+    return {
+      type: 'Feature',
+      properties: { handle },
+      geometry: {
+        type: 'Point',
+        coordinates
       }
     };
   }

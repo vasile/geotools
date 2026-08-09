@@ -1,6 +1,31 @@
 import { MapHelpers } from './map-helpers';
 
 describe('MapHelpers', () => {
+  it('creates a closed circle polygon and center/radius handles', () => {
+    const polygon = MapHelpers.centerRadiusToPolygonFeatureCollection([7.4474, 46.948], 1000);
+    const ring = polygon.features[0].geometry.coordinates[0];
+    const handles = MapHelpers.circleToHandleFeatureCollection([7.4474, 46.948], polygon);
+
+    expect(ring).toHaveLength(65);
+    expect(ring[0]).toEqual(ring[ring.length - 1]);
+    expect(handles.features.map((feature) => feature.properties.handle)).toEqual([
+      'center',
+      'radius'
+    ]);
+    expect(handles.features[0].geometry.coordinates).toEqual([7.4474, 46.948]);
+  });
+
+  it('converts a circle polygon to polygon formats and enclosing bounds', () => {
+    const polygon = MapHelpers.centerRadiusToPolygonFeatureCollection([7.4474, 46.948], 1000);
+    const bounds = MapHelpers.polygonFeatureCollectionToBounds(polygon);
+
+    expect(bounds[0]).toBeLessThan(7.4474);
+    expect(bounds[2]).toBeGreaterThan(7.4474);
+    expect(MapHelpers.polygonFeatureCollectionToWkt(polygon)).toMatch(/^POLYGON\(\(/);
+    expect(MapHelpers.polygonFeatureCollectionToKml(polygon)).toContain('<name>Circle</name>');
+    expect(MapHelpers.polygonFeatureCollectionToGml(polygon)).toContain('<gml:Polygon');
+  });
+
   it('converts a center and dimensions in metres to bounds', () => {
     const bounds = MapHelpers.centerSizeToBounds([8.5, 47], 1000, 500);
 
