@@ -12,6 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import type { FeatureCollection, Polygon } from 'geojson';
 import * as mapgl from 'mapbox-gl';
 import { debounceTime, Subject } from 'rxjs';
 
@@ -20,10 +21,12 @@ import { MapHelpers } from '../../shared/helpers/map-helpers';
 import type {
   Bounds,
   BoundsCorner,
+  CircleHandle,
   CenterCoordinate
 } from '../../shared/helpers/map-helpers';
 
-type RectangleMode = 'bounds' | 'center';
+type RectangleMode = 'bounds' | 'center' | 'circle';
+type MapHandle = BoundsCorner | CircleHandle;
 
 type OutputFormat =
   | 'geojson'
@@ -71,21 +74,45 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   private map?: mapgl.Map;
   private currentBounds = DEFAULT_BOUNDS;
+  private currentPolygon: FeatureCollection<Polygon> =
+    MapHelpers.boundsToPolygonFeatureCollection(DEFAULT_BOUNDS);
   private readonly rectangleChanges = new Subject<void>();
   private readonly draggedBoundsChanges = new Subject<Bounds>();
   private copyStatusTimer?: ReturnType<typeof setTimeout>;
-  private activeCorner?: BoundsCorner;
+  private activeHandle?: MapHandle;
 
   protected rectangleMode: RectangleMode = 'bounds';
   protected bboxValue = DEFAULT_BOUNDS.join(',');
   protected centerValue = DEFAULT_CENTER_SIZE.center.join(',');
   protected widthValue = this.roundDistance(DEFAULT_CENTER_SIZE.widthMeters);
   protected heightValue = this.roundDistance(DEFAULT_CENTER_SIZE.heightMeters);
+  protected radiusValue = this.roundDistance(
+    Math.min(DEFAULT_CENTER_SIZE.widthMeters, DEFAULT_CENTER_SIZE.heightMeters) / 2
+  );
   protected errorMessage = '';
   protected outputFormat: OutputFormat = 'geojson';
   protected readonly copyStatus = signal('');
 
+  protected get outputDescription(): string {
+    return this.rectangleMode === 'circle'
+      ? 'Circle polygon, or its enclosing bounds for rectangle-only formats.'
+      : 'Formatted polygon for the current bounding box.';
+  }
+
   protected get outputValue(): string {
+    if (this.rectangleMode === 'circle') {
+      switch (this.outputFormat) {
+        case 'wkt':
+          return MapHelpers.polygonFeatureCollectionToWkt(this.currentPolygon);
+        case 'kml':
+          return MapHelpers.polygonFeatureCollectionToKml(this.currentPolygon);
+        case 'gml':
+          return MapHelpers.polygonFeatureCollectionToGml(this.currentPolygon);
+        case 'geojson':
+          return JSON.stringify(this.currentPolygon, null, 2);
+      }
+    }
+
     switch (this.outputFormat) {
       case 'wkt':
         return MapHelpers.boundsToWkt(this.currentBounds);
@@ -120,7 +147,18 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     const routeMode = this.route.snapshot.queryParamMap.get('mode');
     const routeBounds = this.route.snapshot.queryParamMap.get('bounds');
 
-    if (routeMode === 'center') {
+    if (routeMode === 'circle') {
+      const center = this.parseCenter(this.route.snapshot.queryParamMap.get('coords') ?? '');
+      const radius = this.parseDimension(this.route.snapshot.queryParamMap.get('r'));
+
+      if (center && radius) {
+        this.rectangleMode = 'circle';
+        this.centerValue = center.join(',');
+        this.radiusValue = radius;
+        this.setCircleGeometry(center, radius);
+        this.errorMessage = '';
+      }
+    } else if (routeMode === 'center') {
       const center = this.parseCenter(this.route.snapshot.queryParamMap.get('coords') ?? '');
       const width = this.parseDimension(this.route.snapshot.queryParamMap.get('w'));
       const height = this.parseDimension(this.route.snapshot.queryParamMap.get('h'));
@@ -147,6 +185,10 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
         this.currentBounds = parsedBounds;
         this.errorMessage = '';
       }
+    }
+
+    if (this.rectangleMode !== 'circle') {
+      this.currentPolygon = MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds);
     }
 
     const routeFormat = this.route.snapshot.queryParamMap.get('format');
@@ -183,6 +225,11 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   protected applyRectangle(fitMap = true): void {
+    if (this.rectangleMode === 'circle') {
+      this.applyCircle(fitMap);
+      return;
+    }
+
     if (this.rectangleMode === 'center') {
       this.applyCenterSize(fitMap);
       return;
@@ -217,6 +264,19 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   protected rectangleModeChanged(mode: RectangleMode): void {
     this.rectangleMode = mode;
     this.syncInputsFromBounds(this.currentBounds);
+
+    if (mode === 'circle') {
+      const center = this.parseCenter(this.centerValue);
+
+      if (center) {
+        this.setCircleGeometry(center, this.radiusValue);
+        this.drawBounds(this.currentBounds);
+      }
+    } else {
+      this.currentPolygon = MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds);
+      this.drawBounds(this.currentBounds);
+    }
+
     this.errorMessage = '';
     this.updateQueryParams(this.currentBounds);
   }
@@ -236,6 +296,23 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       this.roundCoordinate(northeast.lng),
       this.roundCoordinate(northeast.lat)
     ];
+
+    if (this.rectangleMode === 'circle') {
+      const center: CenterCoordinate = [
+        this.roundCoordinate((bounds[0] + bounds[2]) / 2),
+        this.roundCoordinate((bounds[1] + bounds[3]) / 2)
+      ];
+      const radius = new mapgl.LngLat(center[0], center[1]).distanceTo(
+        new mapgl.LngLat(bounds[2], bounds[3])
+      );
+      this.centerValue = center.join(',');
+      this.radiusValue = this.roundDistance(radius);
+      this.setCircleGeometry(center, this.radiusValue);
+      this.errorMessage = '';
+      this.drawBounds(this.currentBounds);
+      this.updateQueryParams(this.currentBounds);
+      return;
+    }
 
     this.currentBounds = bounds;
     this.syncInputsFromBounds(bounds);
@@ -265,6 +342,40 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     clearTimeout(this.copyStatusTimer);
     this.endHandleDrag();
     this.mapService.destroy();
+  }
+
+  private applyCircle(fitMap: boolean): void {
+    const center = this.parseCenter(this.centerValue);
+    const radius = this.parseDimension(this.radiusValue);
+
+    if (!center || !radius) {
+      if (center && !radius) {
+        this.errorMessage = 'Radius must be greater than 0 metres.';
+      }
+      return;
+    }
+
+    this.centerValue = center.join(',');
+    this.radiusValue = radius;
+    this.setCircleGeometry(center, radius);
+    this.errorMessage = '';
+    this.drawBounds(this.currentBounds);
+    this.updateQueryParams(this.currentBounds);
+
+    if (fitMap) {
+      this.fitBounds(this.currentBounds);
+    }
+  }
+
+  private setCircleGeometry(center: CenterCoordinate, radiusMeters: number): void {
+    this.currentPolygon = MapHelpers.centerRadiusToPolygonFeatureCollection(
+      center,
+      radiusMeters
+    );
+    this.currentBounds = this.roundBounds(
+      MapHelpers.polygonFeatureCollectionToBounds(this.currentPolygon)
+    );
+    this.bboxValue = this.currentBounds.join(',');
   }
 
   private parseBounds(value: string): Bounds | undefined {
@@ -364,6 +475,9 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     this.centerValue = centerSize.center.map((coordinate) => this.roundCoordinate(coordinate)).join(',');
     this.widthValue = this.roundDistance(centerSize.widthMeters);
     this.heightValue = this.roundDistance(centerSize.heightMeters);
+    this.radiusValue = this.roundDistance(
+      Math.min(centerSize.widthMeters, centerSize.heightMeters) / 2
+    );
   }
 
   private fitBounds(bounds: Bounds): void {
@@ -377,13 +491,19 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private drawBounds(bounds: Bounds): void {
-    this.mapService.updateGeoJSONSource(
-      BOUNDS_SOURCE_ID,
-      MapHelpers.boundsToPolygonFeatureCollection(bounds)
-    );
+    if (this.rectangleMode !== 'circle') {
+      this.currentPolygon = MapHelpers.boundsToPolygonFeatureCollection(bounds);
+    }
+
+    this.mapService.updateGeoJSONSource(BOUNDS_SOURCE_ID, this.currentPolygon);
     this.mapService.updateGeoJSONSource(
       BOUNDS_HANDLES_SOURCE_ID,
-      MapHelpers.boundsToHandleFeatureCollection(bounds)
+      this.rectangleMode === 'circle'
+        ? MapHelpers.circleToHandleFeatureCollection(
+            this.parseCenter(this.centerValue)!,
+            this.currentPolygon
+          )
+        : MapHelpers.boundsToHandleFeatureCollection(bounds)
     );
   }
 
@@ -391,11 +511,12 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {
-        mode: this.rectangleMode === 'center' ? 'center' : null,
+        mode: this.rectangleMode === 'bounds' ? null : this.rectangleMode,
         bounds: this.rectangleMode === 'bounds' ? bounds.join(',') : null,
-        coords: this.rectangleMode === 'center' ? this.centerValue : null,
         w: this.rectangleMode === 'center' ? this.widthValue : null,
         h: this.rectangleMode === 'center' ? this.heightValue : null,
+        coords: this.rectangleMode !== 'bounds' ? this.centerValue : null,
+        r: this.rectangleMode === 'circle' ? this.radiusValue : null,
         format: this.outputFormat === 'geojson' ? null : this.outputFormat
       },
       queryParamsHandling: 'merge',
@@ -406,7 +527,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   private addBoundsLayers(): void {
     this.map?.addSource(BOUNDS_SOURCE_ID, {
       type: 'geojson',
-      data: MapHelpers.boundsToPolygonFeatureCollection(this.currentBounds)
+      data: this.currentPolygon
     });
     this.map?.addLayer({
       id: BOUNDS_FILL_LAYER_ID,
@@ -428,7 +549,13 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     });
     this.map?.addSource(BOUNDS_HANDLES_SOURCE_ID, {
       type: 'geojson',
-      data: MapHelpers.boundsToHandleFeatureCollection(this.currentBounds)
+      data:
+        this.rectangleMode === 'circle'
+          ? MapHelpers.circleToHandleFeatureCollection(
+              this.parseCenter(this.centerValue)!,
+              this.currentPolygon
+            )
+          : MapHelpers.boundsToHandleFeatureCollection(this.currentBounds)
     });
     this.map?.addLayer({
       id: BOUNDS_HANDLES_LAYER_ID,
@@ -436,7 +563,12 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       source: BOUNDS_HANDLES_SOURCE_ID,
       paint: {
         'circle-radius': 7,
-        'circle-color': '#2563eb',
+        'circle-color': [
+          'case',
+          ['==', ['get', 'handle'], 'radius'],
+          '#f59e0b',
+          '#2563eb'
+        ],
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 2
       }
@@ -448,19 +580,20 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       }
     });
     this.map?.on('mouseleave', BOUNDS_HANDLES_LAYER_ID, () => {
-      if (this.map && !this.activeCorner) {
+      if (this.map && !this.activeHandle) {
         this.map.getCanvas().style.cursor = '';
       }
     });
     this.map?.on('mousedown', BOUNDS_HANDLES_LAYER_ID, (event) => {
-      const corner = event.features?.[0]?.properties?.['corner'];
+      const properties = event.features?.[0]?.properties;
+      const handle = properties?.['handle'] ?? properties?.['corner'];
 
-      if (!isBoundsCorner(corner)) {
+      if (!isMapHandle(handle)) {
         return;
       }
 
       event.preventDefault();
-      this.activeCorner = corner;
+      this.activeHandle = handle;
       this.map?.dragPan.disable();
       this.map?.getCanvas().style.setProperty('cursor', 'grabbing');
       this.map?.on('mousemove', this.handleDrag);
@@ -469,7 +602,35 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private readonly handleDrag = (event: mapgl.MapMouseEvent): void => {
-    if (!this.activeCorner) {
+    if (!this.activeHandle) {
+      return;
+    }
+
+    if (this.activeHandle === 'center' || this.activeHandle === 'radius') {
+      const currentCenter = this.parseCenter(this.centerValue);
+
+      if (!currentCenter) {
+        return;
+      }
+
+      const center: CenterCoordinate =
+        this.activeHandle === 'center'
+          ? [this.roundCoordinate(event.lngLat.lng), this.roundCoordinate(event.lngLat.lat)]
+          : currentCenter;
+      const radius =
+        this.activeHandle === 'radius'
+          ? this.roundDistance(
+              new mapgl.LngLat(center[0], center[1]).distanceTo(event.lngLat)
+            )
+          : this.radiusValue;
+
+      this.centerValue = center.join(',');
+      this.radiusValue = Math.max(radius, 0.01);
+      this.setCircleGeometry(center, this.radiusValue);
+      this.errorMessage = '';
+      this.drawBounds(this.currentBounds);
+      this.draggedBoundsChanges.next(this.currentBounds);
+      this.changeDetectorRef.markForCheck();
       return;
     }
 
@@ -478,7 +639,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
     const latitude = this.roundCoordinate(event.lngLat.lat);
     let bounds: Bounds;
 
-    switch (this.activeCorner) {
+    switch (this.activeHandle) {
       case 'sw':
         bounds = [
           Math.min(longitude, east - MIN_BOUNDS_SPAN),
@@ -522,7 +683,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   };
 
   private readonly endHandleDrag = (): void => {
-    if (this.activeCorner) {
+    if (this.activeHandle) {
       this.updateQueryParams(this.currentBounds);
     }
 
@@ -533,10 +694,14 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
       this.map.getCanvas().style.cursor = '';
     }
 
-    this.activeCorner = undefined;
+    this.activeHandle = undefined;
   };
 }
 
 function isBoundsCorner(value: unknown): value is BoundsCorner {
   return value === 'sw' || value === 'se' || value === 'ne' || value === 'nw';
+}
+
+function isMapHandle(value: unknown): value is MapHandle {
+  return isBoundsCorner(value) || value === 'center' || value === 'radius';
 }

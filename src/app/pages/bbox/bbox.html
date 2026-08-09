@@ -7,7 +7,7 @@
     <section class="control-panel">
       <div class="panel-heading">
         <h1>Bounding box</h1>
-        <p>Construct a rectangle from bounds or a center point and dimensions.</p>
+        <p>Construct a box or circle from geographic coordinates.</p>
       </div>
 
       <label class="form-label" for="rectangleMode">Construction mode</label>
@@ -20,6 +20,7 @@
       >
         <option value="bounds">Box coordinates</option>
         <option value="center">Center and size</option>
+        <option value="circle">Circle</option>
       </select>
 
       <form (ngSubmit)="applyRectangle()" novalidate>
@@ -41,8 +42,8 @@
               <div class="invalid-feedback" id="bboxError">{{ errorMessage }}</div>
             }
           </div>
-          <div class="form-text" id="bboxHelp">Format: swx,swy,nex,ney</div>
-        } @else {
+          <div class="form-text" id="bboxHelp">Format: west,south,east,north</div>
+        } @else if (rectangleMode === 'center') {
           <label class="form-label" for="centerInput">Center coordinates</label>
           <input
             id="centerInput"
@@ -97,6 +98,43 @@
           <div class="apply-action">
             <button class="btn btn-primary" type="submit">Apply</button>
           </div>
+        } @else {
+          <label class="form-label" for="circleCenterInput">Center coordinates</label>
+          <input
+            id="circleCenterInput"
+            name="circleCenter"
+            class="form-control"
+            [class.is-invalid]="errorMessage"
+            [(ngModel)]="centerValue"
+            (ngModelChange)="rectangleValueChanged()"
+            placeholder="lng,lat"
+            aria-describedby="circleCenterHelp circleError"
+          />
+          <div class="form-text" id="circleCenterHelp">Format: longitude,latitude</div>
+
+          <div class="circle-radius-field">
+            <label class="form-label" for="radiusInput">Radius</label>
+            <div class="input-group input-group-sm">
+              <input
+                id="radiusInput"
+                name="radius"
+                class="form-control"
+                type="number"
+                min="0.01"
+                step="1"
+                [(ngModel)]="radiusValue"
+                (ngModelChange)="rectangleValueChanged()"
+              />
+              <span class="input-group-text">metres</span>
+            </div>
+          </div>
+
+          @if (errorMessage) {
+            <div class="center-error" id="circleError">{{ errorMessage }}</div>
+          }
+          <div class="apply-action">
+            <button class="btn btn-primary" type="submit">Apply</button>
+          </div>
         }
         <div class="viewport-action">
           <span>or construct from</span>
@@ -109,7 +147,7 @@
     <section class="control-panel output-panel" aria-labelledby="outputHeading">
       <div class="panel-heading">
         <h2 id="outputHeading">Output</h2>
-        <p>Formatted polygon for the current bounding box.</p>
+        <p>{{ outputDescription }}</p>
       </div>
 
       <label class="form-label" for="outputFormat">Format</label>
