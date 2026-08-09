@@ -95,7 +95,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
 
   protected get outputDescription(): string {
     return this.rectangleMode === 'circle'
-      ? 'Circle polygon, or its enclosing bounds for rectangle-only formats.'
+      ? 'Circle geometry, or its enclosing bounds for rectangle-only formats.'
       : 'Formatted polygon for the current bounding box.';
   }
 
@@ -108,6 +108,11 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
           return MapHelpers.polygonFeatureCollectionToKml(this.currentPolygon);
         case 'gml':
           return MapHelpers.polygonFeatureCollectionToGml(this.currentPolygon);
+        case 'ojp-rectangle':
+          return MapHelpers.centerRadiusToOjpCircle(
+            this.parseCenter(this.centerValue)!,
+            this.radiusValue
+          );
         case 'geojson':
           return JSON.stringify(this.currentPolygon, null, 2);
       }
@@ -420,8 +425,8 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private parseDimension(value: unknown): number | undefined {
-    const dimension = Number(value);
-    return Number.isFinite(dimension) && dimension > 0 ? dimension : undefined;
+    const dimension = Math.round(Number(value));
+    return Number.isFinite(dimension) && dimension >= 1 ? dimension : undefined;
   }
 
   private applyCenterSize(fitMap: boolean): void {
@@ -462,7 +467,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
   }
 
   private roundDistance(value: number): number {
-    return Number(value.toFixed(2));
+    return Math.round(value);
   }
 
   private roundBounds(bounds: Bounds): Bounds {
@@ -625,7 +630,7 @@ export class Bbox implements AfterViewInit, OnInit, OnDestroy {
           : this.radiusValue;
 
       this.centerValue = center.join(',');
-      this.radiusValue = Math.max(radius, 0.01);
+      this.radiusValue = Math.max(radius, 1);
       this.setCircleGeometry(center, this.radiusValue);
       this.errorMessage = '';
       this.drawBounds(this.currentBounds);

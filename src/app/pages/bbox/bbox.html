@@ -66,7 +66,7 @@
                   name="width"
                   class="form-control"
                   type="number"
-                  min="0.01"
+                  min="1"
                   step="1"
                   [(ngModel)]="widthValue"
                   (ngModelChange)="rectangleValueChanged()"
@@ -82,7 +82,7 @@
                   name="height"
                   class="form-control"
                   type="number"
-                  min="0.01"
+                  min="1"
                   step="1"
                   [(ngModel)]="heightValue"
                   (ngModelChange)="rectangleValueChanged()"
@@ -120,7 +120,7 @@
                 name="radius"
                 class="form-control"
                 type="number"
-                min="0.01"
+                min="1"
                 step="1"
                 [(ngModel)]="radiusValue"
                 (ngModelChange)="rectangleValueChanged()"
@@ -165,7 +165,9 @@
         <option value="postgis">PostGIS SQL</option>
         <option value="csv">CSV</option>
         <option value="gml">GML</option>
-        <option value="ojp-rectangle">OJP Rectangle</option>
+        <option value="ojp-rectangle">
+          OJP {{ rectangleMode === 'circle' ? 'Circle' : 'Rectangle' }}
+        </option>
       </select>
 
       <label class="visually-hidden" for="formattedOutput">Formatted BBox output</label>
